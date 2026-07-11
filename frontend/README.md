@@ -1,16 +1,41 @@
-# React + Vite
+# NeuroForge
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + Vite + TypeScript web application.
 
-Currently, two official plugins are available:
+## Getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
 
-## Expanding the ESLint configuration
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the development server |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview the production build |
+| `npm run typecheck` | Run TypeScript type check |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Backend
+
+The frontend proxies two backend services:
+
+- `/api/*` → `http://localhost:8080` (main API server)
+- `/auth/*` → `http://localhost:8081` (auth service)
+
+Start your backend servers separately before running the frontend.
+
+## Tech Stack
+
+- **React 19** + **Vite 7** + **TypeScript 5**
+- **Tailwind CSS v4** + shadcn/ui components
+- **Wouter** — lightweight client-side routing
+- **TanStack Query** — async state / data fetching
+- **React Hook Form** + **Zod** — form validation
+- **Framer Motion** — animations
+- **Recharts** — charts and data visualization
+- **Axios** — HTTP client
