@@ -14,9 +14,9 @@ spring:
               - profile
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/neuroforge
-    username: postgres
-    password: cgcayush@123
+    url: {URL}
+    username: {USERNAME}
+    password: {PASSWORD}
 
   jpa:
     hibernate:
@@ -29,8 +29,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ayushthakur192007@gmail.com
-    password: oljexvoxdwgndzxx
+    username: {USERNAME}
+    password: {PASSWORD}
 
     properties:
       mail:
