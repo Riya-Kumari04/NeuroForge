@@ -1,0 +1,88 @@
+spring:
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  application:
+    name: API-GATEWAY
+  cloud:
+    gateway:
+
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+      routes:
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/user/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 50
+
+        - id: auth-service
+          uri: lb://AUTHSERVICE
+          predicates:
+            - Path=/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 5
+
+#        - id: auth-service
+#          uri: lb://AUTH-SERVICE
+#          predicates:
+#            - Path=/auth/**
+
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/user/**
+
+
+
+server:
+  port: ${SERVER_PORT:8080}
+
+secretKey: ${SECRET_KEY:my-secret-key-long-enough-for-sh256-key}
+
+eureka:
+  instance:
+    hostname: ${HOSTNAME:localhost}
+    prefer-ip-address: true
+
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+
+
+logging:
+  level:
+    org:
+      springframework:
+        security: ${SECURITY_LOG_LEVEL:TRACE}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:my-secret-key-long-enough-for-sh256-key}

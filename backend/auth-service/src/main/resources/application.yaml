@@ -1,0 +1,92 @@
+spring:
+  config:
+    import:
+      - "optional:configserver:http://localhost:8071/"
+
+  profiles:
+    active: "prod"
+  application:
+    name: authservice
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:update}
+    show-sql: ${SHOW-SQL:true}
+    properties:
+      hibernate:
+        format_sql: true
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+
+    properties:
+      mail:
+        debug: true
+        smtp:
+          ssl:
+            protocols: TLSv1.2 TLSv1.3
+            enable: false
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+springdoc:
+  swagger-ui:
+    url: /v3/api-docs
+
+server:
+  port: ${SERVER_PORT:9091}
+
+app:
+  frontend-url: http://localhost:5173
+  jwt:
+    secret: ${JWT_SECRET:my-secret-key-long-enough-for-sh256-key}
+    expiration: ${JWT_EXPIRATION:86400000}
+
+#build:
+#  message: "Welcome to auth service"
+#  contactDetails:
+#    name: "sahil kumar"
+#    email: "sahil@gmail.com"
+#  call:
+#    - 9123003142
+#    - 3432431423
+
+
+eureka:
+  instance:
+    hostname: ${HOSTNAME:localhost}
+    prefer-ip-address: true
+
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+
+logging:
+  level:
+    web: TRACE
+    org.springframework.web: TRACE
