@@ -10,6 +10,7 @@ import com.neuroforge.backend.exception.ResourceNotFoundException;
 import com.neuroforge.backend.exception.InvalidInvitationStateException;
 import com.neuroforge.backend.repository.InvitationRepository;
 import com.neuroforge.backend.repository.TeamRepository;
+import com.neuroforge.backend.security.InvitationAccessValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class InvitationService {
 
     private final InvitationRepository invitationRepository;
     private final TeamRepository teamRepository;
+    private final InvitationAccessValidator invitationAccessValidator;
 
     @Transactional
     public InvitationResponse createInvitation(UUID teamId, CreateInvitationRequest request) {
@@ -64,6 +66,8 @@ public class InvitationService {
 
     @Transactional(readOnly = true)
     public InvitationResponse getInvitationById(UUID teamId, UUID id) {
+        invitationAccessValidator.verifyInvitationAccess(id);
+
         if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Team not found with ID: " + teamId);
         }
@@ -80,6 +84,8 @@ public class InvitationService {
 
     @Transactional
     public void deleteInvitation(UUID teamId, UUID id) {
+        invitationAccessValidator.verifyInvitationAccess(id);
+
         if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Team not found with ID: " + teamId);
         }

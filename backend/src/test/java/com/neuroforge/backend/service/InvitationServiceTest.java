@@ -9,8 +9,10 @@ import com.neuroforge.backend.entity.Team;
 import com.neuroforge.backend.exception.DuplicateResourceException;
 import com.neuroforge.backend.exception.InvalidInvitationStateException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
+import com.neuroforge.backend.exception.AccessDeniedException;
 import com.neuroforge.backend.repository.InvitationRepository;
 import com.neuroforge.backend.repository.TeamRepository;
+import com.neuroforge.backend.security.InvitationAccessValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,6 +44,9 @@ public class InvitationServiceTest {
 
     @Mock
     private TeamRepository teamRepository;
+
+    @Mock
+    private InvitationAccessValidator invitationAccessValidator;
 
     @InjectMocks
     private InvitationService invitationService;
@@ -148,7 +155,18 @@ public class InvitationServiceTest {
     }
 
     @Test
+    void getAllInvitations_TeamNotFound_ThrowsException() {
+        when(teamRepository.existsById(teamId)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> invitationService.getAllInvitations(teamId));
+
+        verify(teamRepository).existsById(teamId);
+        verify(invitationRepository, never()).findByTeamId(any(UUID.class));
+    }
+
+    @Test
     void getInvitationById_Success() {
+        doNothing().when(invitationAccessValidator).verifyInvitationAccess(inviteId);
         when(teamRepository.existsById(teamId)).thenReturn(true);
         when(invitationRepository.findById(inviteId)).thenReturn(Optional.of(invitation));
 
@@ -157,12 +175,25 @@ public class InvitationServiceTest {
         assertNotNull(response);
         assertEquals(inviteId, response.getId());
 
+        verify(invitationAccessValidator).verifyInvitationAccess(inviteId);
         verify(teamRepository).existsById(teamId);
         verify(invitationRepository).findById(inviteId);
     }
 
     @Test
+    void getInvitationById_AccessDenied_ThrowsAccessDeniedException() {
+        doThrow(new AccessDeniedException("Access denied")).when(invitationAccessValidator).verifyInvitationAccess(inviteId);
+
+        assertThrows(AccessDeniedException.class, () -> invitationService.getInvitationById(teamId, inviteId));
+
+        verify(invitationAccessValidator).verifyInvitationAccess(inviteId);
+        verify(teamRepository, never()).existsById(any(UUID.class));
+        verify(invitationRepository, never()).findById(any(UUID.class));
+    }
+
+    @Test
     void deleteInvitation_Success() {
+        doNothing().when(invitationAccessValidator).verifyInvitationAccess(inviteId);
         when(teamRepository.existsById(teamId)).thenReturn(true);
         when(invitationRepository.findById(inviteId)).thenReturn(Optional.of(invitation));
         when(invitationRepository.save(any(Invitation.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -170,9 +201,21 @@ public class InvitationServiceTest {
         invitationService.deleteInvitation(teamId, inviteId);
 
         assertEquals(InvitationStatus.CANCELLED, invitation.getStatus());
+        verify(invitationAccessValidator).verifyInvitationAccess(inviteId);
         verify(teamRepository).existsById(teamId);
         verify(invitationRepository).findById(inviteId);
         verify(invitationRepository).save(invitation);
+    }
+
+    @Test
+    void deleteInvitation_AccessDenied_ThrowsAccessDeniedException() {
+        doThrow(new AccessDeniedException("Access denied")).when(invitationAccessValidator).verifyInvitationAccess(inviteId);
+
+        assertThrows(AccessDeniedException.class, () -> invitationService.deleteInvitation(teamId, inviteId));
+
+        verify(invitationAccessValidator).verifyInvitationAccess(inviteId);
+        verify(teamRepository, never()).existsById(any(UUID.class));
+        verify(invitationRepository, never()).findById(any(UUID.class));
     }
 
     @Test
