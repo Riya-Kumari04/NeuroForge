@@ -10,6 +10,7 @@ import com.neuroforge.backend.exception.DuplicateResourceException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
 import com.neuroforge.backend.repository.TeamMemberRepository;
 import com.neuroforge.backend.repository.TeamRepository;
+import com.neuroforge.backend.security.TeamMemberAccessValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class TeamMemberService {
 
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
+    private final TeamMemberAccessValidator teamMemberAccessValidator;
 
     @Transactional
     public TeamMemberResponse createMember(UUID teamId, CreateTeamMemberRequest request) {
@@ -61,6 +63,8 @@ public class TeamMemberService {
 
     @Transactional(readOnly = true)
     public TeamMemberResponse getMemberById(UUID teamId, UUID memberId) {
+        teamMemberAccessValidator.verifyTeamMemberAccess(memberId);
+
         if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Team not found with ID: " + teamId);
         }
@@ -77,6 +81,8 @@ public class TeamMemberService {
 
     @Transactional
     public TeamMemberResponse updateMember(UUID teamId, UUID memberId, CreateTeamMemberRequest request) {
+        teamMemberAccessValidator.verifyTeamMemberAccess(memberId);
+
         if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Team not found with ID: " + teamId);
         }
@@ -106,6 +112,8 @@ public class TeamMemberService {
 
     @Transactional
     public void deleteMember(UUID teamId, UUID memberId) {
+        teamMemberAccessValidator.verifyTeamMemberAccess(memberId);
+
         if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Team not found with ID: " + teamId);
         }
