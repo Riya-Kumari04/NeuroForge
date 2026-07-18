@@ -31,8 +31,10 @@ public class InvitationService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with ID: " + teamId));
 
-        if (invitationRepository.existsByTeamIdAndEmailAndStatus(teamId, request.getEmail(), InvitationStatus.PENDING)) {
-            throw new DuplicateResourceException("A pending invitation for this email already exists in this team: " + request.getEmail());
+        if (invitationRepository.existsByTeamIdAndEmailAndStatus(teamId, request.getEmail(),
+                InvitationStatus.PENDING)) {
+            throw new DuplicateResourceException(
+                    "A pending invitation for this email already exists in this team: " + request.getEmail());
         }
 
         Invitation invitation = Invitation.builder()
@@ -98,7 +100,8 @@ public class InvitationService {
         Invitation invitation = invitationRepository.findByInvitationToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Invitation not found for token: " + token));
 
-        if (invitation.getStatus() == InvitationStatus.EXPIRED || LocalDateTime.now().isAfter(invitation.getExpiresAt())) {
+        if (invitation.getStatus() == InvitationStatus.EXPIRED
+                || LocalDateTime.now().isAfter(invitation.getExpiresAt())) {
             if (invitation.getStatus() == InvitationStatus.PENDING) {
                 invitation.setStatus(InvitationStatus.EXPIRED);
                 invitationRepository.save(invitation);
@@ -107,7 +110,8 @@ public class InvitationService {
         }
 
         if (invitation.getStatus() != InvitationStatus.PENDING) {
-            throw new InvalidInvitationStateException("Invitation is not pending (status: " + invitation.getStatus() + ")");
+            throw new InvalidInvitationStateException(
+                    "Invitation is not pending (status: " + invitation.getStatus() + ")");
         }
 
         invitation.setStatus(InvitationStatus.ACCEPTED);
