@@ -9,6 +9,7 @@ import com.neuroforge.backend.exception.DuplicateResourceException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
 import com.neuroforge.backend.repository.OrganizationRepository;
 import com.neuroforge.backend.repository.TeamRepository;
+import com.neuroforge.backend.security.TeamAccessValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ public class TeamService {
 
     private final TeamRepository teamRepository;
     private final OrganizationRepository organizationRepository;
+    private final TeamAccessValidator teamAccessValidator;
 
     @Transactional
     public TeamResponse createTeam(UUID organizationId, CreateTeamRequest request) {
@@ -59,6 +61,8 @@ public class TeamService {
 
     @Transactional(readOnly = true)
     public TeamResponse getTeamById(UUID organizationId, UUID teamId) {
+        teamAccessValidator.verifyTeamAccess(teamId);
+
         if (!organizationRepository.existsById(organizationId)) {
             throw new ResourceNotFoundException("Organization not found with ID: " + organizationId);
         }
@@ -75,6 +79,8 @@ public class TeamService {
 
     @Transactional
     public TeamResponse updateTeam(UUID organizationId, UUID teamId, CreateTeamRequest request) {
+        teamAccessValidator.verifyTeamAccess(teamId);
+
         if (!organizationRepository.existsById(organizationId)) {
             throw new ResourceNotFoundException("Organization not found with ID: " + organizationId);
         }
@@ -102,6 +108,8 @@ public class TeamService {
 
     @Transactional
     public void deleteTeam(UUID organizationId, UUID teamId) {
+        teamAccessValidator.verifyTeamAccess(teamId);
+
         if (!organizationRepository.existsById(organizationId)) {
             throw new ResourceNotFoundException("Organization not found with ID: " + organizationId);
         }

@@ -7,8 +7,10 @@ import com.neuroforge.backend.entity.Team;
 import com.neuroforge.backend.entity.TeamStatus;
 import com.neuroforge.backend.exception.DuplicateResourceException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
+import com.neuroforge.backend.exception.AccessDeniedException;
 import com.neuroforge.backend.repository.OrganizationRepository;
 import com.neuroforge.backend.repository.TeamRepository;
+import com.neuroforge.backend.security.TeamAccessValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +42,9 @@ public class TeamServiceTest {
 
     @Mock
     private OrganizationRepository organizationRepository;
+
+    @Mock
+    private TeamAccessValidator teamAccessValidator;
 
     @InjectMocks
     private TeamService teamService;
@@ -143,6 +149,7 @@ public class TeamServiceTest {
 
     @Test
     void getTeamById_Success() {
+        doNothing().when(teamAccessValidator).verifyTeamAccess(teamId);
         when(organizationRepository.existsById(orgId)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
 
@@ -151,18 +158,32 @@ public class TeamServiceTest {
         assertNotNull(response);
         assertEquals(teamId, response.getId());
 
+        verify(teamAccessValidator).verifyTeamAccess(teamId);
         verify(organizationRepository).existsById(orgId);
         verify(teamRepository).findById(teamId);
     }
 
     @Test
+    void getTeamById_AccessDenied_ThrowsAccessDeniedException() {
+        doThrow(new AccessDeniedException("Access denied")).when(teamAccessValidator).verifyTeamAccess(teamId);
+
+        assertThrows(AccessDeniedException.class, () -> teamService.getTeamById(orgId, teamId));
+
+        verify(teamAccessValidator).verifyTeamAccess(teamId);
+        verify(organizationRepository, never()).existsById(any(UUID.class));
+        verify(teamRepository, never()).findById(any(UUID.class));
+    }
+
+    @Test
     void getTeamById_NotBelonging_ThrowsException() {
         UUID otherOrgId = UUID.randomUUID();
+        doNothing().when(teamAccessValidator).verifyTeamAccess(teamId);
         when(organizationRepository.existsById(otherOrgId)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team)); // belongs to orgId
 
         assertThrows(ResourceNotFoundException.class, () -> teamService.getTeamById(otherOrgId, teamId));
 
+        verify(teamAccessValidator).verifyTeamAccess(teamId);
         verify(organizationRepository).existsById(otherOrgId);
         verify(teamRepository).findById(teamId);
     }
@@ -183,6 +204,7 @@ public class TeamServiceTest {
                 .status(TeamStatus.INACTIVE)
                 .build();
 
+        doNothing().when(teamAccessValidator).verifyTeamAccess(teamId);
         when(organizationRepository.existsById(orgId)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(teamRepository.existsByOrganizationIdAndNameAndIdNot(orgId, updateReq.getName(), teamId)).thenReturn(false);
@@ -194,6 +216,7 @@ public class TeamServiceTest {
         assertEquals(updateReq.getName(), response.getName());
         assertEquals(TeamStatus.INACTIVE, response.getStatus());
 
+        verify(teamAccessValidator).verifyTeamAccess(teamId);
         verify(organizationRepository).existsById(orgId);
         verify(teamRepository).findById(teamId);
         verify(teamRepository).existsByOrganizationIdAndNameAndIdNot(orgId, updateReq.getName(), teamId);
@@ -201,15 +224,40 @@ public class TeamServiceTest {
     }
 
     @Test
+    void updateTeam_AccessDenied_ThrowsAccessDeniedException() {
+        CreateTeamRequest updateReq = CreateTeamRequest.builder().name("Frontend").build();
+        doThrow(new AccessDeniedException("Access denied")).when(teamAccessValidator).verifyTeamAccess(teamId);
+
+        assertThrows(AccessDeniedException.class, () -> teamService.updateTeam(orgId, teamId, updateReq));
+
+        verify(teamAccessValidator).verifyTeamAccess(teamId);
+        verify(organizationRepository, never()).existsById(any(UUID.class));
+        verify(teamRepository, never()).findById(any(UUID.class));
+    }
+
+    @Test
     void deleteTeam_Success() {
+        doNothing().when(teamAccessValidator).verifyTeamAccess(teamId);
         when(organizationRepository.existsById(orgId)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         doNothing().when(teamRepository).delete(team);
 
         teamService.deleteTeam(orgId, teamId);
 
+        verify(teamAccessValidator).verifyTeamAccess(teamId);
         verify(organizationRepository).existsById(orgId);
         verify(teamRepository).findById(teamId);
         verify(teamRepository).delete(team);
+    }
+
+    @Test
+    void deleteTeam_AccessDenied_ThrowsAccessDeniedException() {
+        doThrow(new AccessDeniedException("Access denied")).when(teamAccessValidator).verifyTeamAccess(teamId);
+
+        assertThrows(AccessDeniedException.class, () -> teamService.deleteTeam(orgId, teamId));
+
+        verify(teamAccessValidator).verifyTeamAccess(teamId);
+        verify(organizationRepository, never()).existsById(any(UUID.class));
+        verify(teamRepository, never()).findById(any(UUID.class));
     }
 }
