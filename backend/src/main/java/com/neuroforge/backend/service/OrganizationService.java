@@ -7,6 +7,7 @@ import com.neuroforge.backend.entity.OrganizationStatus;
 import com.neuroforge.backend.exception.DuplicateResourceException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
 import com.neuroforge.backend.repository.OrganizationRepository;
+import com.neuroforge.backend.security.OrganizationAccessValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
+    private final OrganizationAccessValidator organizationAccessValidator;
 
     @Transactional
     public OrganizationResponse createOrganization(CreateOrganizationRequest request) {
@@ -49,6 +51,7 @@ public class OrganizationService {
 
     @Transactional(readOnly = true)
     public OrganizationResponse getOrganizationById(UUID id) {
+        organizationAccessValidator.verifyOrganizationAccess(id);
         Organization organization = organizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + id));
         return mapToResponse(organization);
@@ -56,6 +59,7 @@ public class OrganizationService {
 
     @Transactional
     public OrganizationResponse updateOrganization(UUID id, CreateOrganizationRequest request) {
+        organizationAccessValidator.verifyOrganizationAccess(id);
         Organization organization = organizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + id));
 
@@ -76,6 +80,7 @@ public class OrganizationService {
 
     @Transactional
     public void deleteOrganization(UUID id) {
+        organizationAccessValidator.verifyOrganizationAccess(id);
         Organization organization = organizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with ID: " + id));
         organizationRepository.delete(organization);
