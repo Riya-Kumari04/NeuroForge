@@ -36,6 +36,7 @@ export interface TeamMember {
   userName: string;
   userEmail: string;
   teamId?: number;
+  teamName?: string;
   organizationId: number;
   role: OrgRole;
   joinedAt: string;
@@ -79,6 +80,7 @@ export interface CreateTeamRequest {
   name: string;
   description?: string;
   leadId?: number;
+  initialMemberIds?: number[];
 }
 
 export interface InviteMemberRequest {
@@ -99,14 +101,25 @@ export const organizationService = {
 
   // Teams
   getTeams: (orgId: number) => api.get<any>(`/organizations/${orgId}/teams`),
-  createTeam: (orgId: number, data: CreateTeamRequest) => api.post<any>(`/organizations/${orgId}/teams`, data),
+  createTeam: (orgId: number, data: CreateTeamRequest) =>
+    api.post<any>(`/organizations/${orgId}/teams`, data),
   updateTeam: (orgId: number, teamId: number, data: Partial<CreateTeamRequest>) =>
     api.put<any>(`/organizations/${orgId}/teams/${teamId}`, data),
-  deleteTeam: (orgId: number, teamId: number) => api.delete(`/organizations/${orgId}/teams/${teamId}`),
+  deleteTeam: (orgId: number, teamId: number) =>
+    api.delete(`/organizations/${orgId}/teams/${teamId}`),
+
+  // Team Members
+  getTeamMembers: (orgId: number, teamId: number) =>
+    api.get<any>(`/organizations/${orgId}/teams/${teamId}/members`),
+  addTeamMember: (orgId: number, teamId: number, memberId: number) =>
+    api.post<any>(`/organizations/${orgId}/teams/${teamId}/members`, { memberId }),
+  removeTeamMember: (orgId: number, teamId: number, memberId: number) =>
+    api.delete(`/organizations/${orgId}/teams/${teamId}/members/${memberId}`),
 
   // Members
   getMembers: (orgId: number) => api.get<any>(`/organizations/${orgId}/members`),
-  removeMember: (orgId: number, memberId: number) => api.delete(`/organizations/${orgId}/members/${memberId}`),
+  removeMember: (orgId: number, memberId: number) =>
+    api.delete(`/organizations/${orgId}/members/${memberId}`),
 
   // Invitations
   inviteMember: (orgId: number, data: InviteMemberRequest) =>

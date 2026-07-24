@@ -1,197 +1,140 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
+import { Users, FolderKanban, MailPlus, Users2, Loader2, Building2 } from 'lucide-react';
 import Sidebar from '@/components/common/Sidebar';
 import DashboardNavbar from '@/components/common/DashboardNavbar';
-import { Users, FolderKanban, MailPlus, ShieldCheck, Lock, BarChart2, Cpu } from 'lucide-react';
+import { organizationService, Organization, TeamMember, OrgStatsDto } from '@/services/organizationService';
 
-const teamMembers = [
-  { id: 1, name: 'Sarah Connor', role: 'Project Manager', dept: 'Product', status: 'Active' },
-  { id: 2, name: 'John Smith', role: 'Senior Developer', dept: 'Engineering', status: 'Active' },
-  { id: 3, name: 'Emily Chen', role: 'QA Lead', dept: 'QA', status: 'On Leave' },
-  { id: 4, name: 'Michael Chang', role: 'UI/UX Designer', dept: 'Design', status: 'Active' },
-  { id: 5, name: 'David Miller', role: 'Developer', dept: 'Engineering', status: 'Active' },
-];
-
-const recentActivity = [
-  { id: 1, text: 'Sarah Connor assigned role: Project Manager', time: '1 hour ago' },
-  { id: 2, text: 'John Smith invitation accepted', time: '3 hours ago' },
-  { id: 3, text: '3 new developer invites sent', time: '5 hours ago' },
-  { id: 4, text: 'Emily Chen role updated to QA Lead', time: '1 day ago' },
-];
-
-function ComingSoonCard({ icon: Icon, title, description, module }: { icon: React.ElementType; title: string; description: string; module: string }) {
+function StatCard({ label, value, icon: Icon, color, bg }: {
+  label: string; value: number | string; icon: React.ElementType; color: string; bg: string;
+}) {
   return (
-    <div className="bg-card border border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center text-center min-h-[180px]">
-      <div className="w-10 h-10 rounded-lg bg-slate-500/10 flex items-center justify-center text-slate-500 mb-3">
+    <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+      <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center ${color} mb-4`}>
         <Icon className="w-5 h-5" />
       </div>
-      <h3 className="text-sm font-semibold text-white mb-1">{title}</h3>
-      <p className="text-xs text-muted-foreground mb-3">{description}</p>
-      <span className="text-[10px] px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 font-medium">
-        {module}
-      </span>
+      <h3 className="text-muted-foreground text-sm font-medium mb-1">{label}</h3>
+      <p className="text-3xl font-bold text-white">{value}</p>
     </div>
   );
 }
 
 export default function OrgAdminDashboard() {
+  const { data: orgsData, isLoading: orgsLoading } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: () => organizationService.getAll().then(r => r.data),
+  });
+  const orgs: Organization[] = orgsData?.data || [];
+  const firstOrg = orgs[0];
+
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['org-stats', firstOrg?.id],
+    queryFn: () => organizationService.getStats(firstOrg!.id).then(r => r.data),
+    enabled: !!firstOrg?.id,
+  });
+  const { data: membersData, isLoading: membersLoading } = useQuery({
+    queryKey: ['org-members', firstOrg?.id],
+    queryFn: () => organizationService.getMembers(firstOrg!.id).then(r => r.data),
+    enabled: !!firstOrg?.id,
+  });
+
+  const stats: OrgStatsDto | undefined = statsData?.data;
+  const members: TeamMember[] = membersData?.data || [];
+  const isLoading = orgsLoading || statsLoading || membersLoading;
+
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
       <div className="flex-1 ml-64 flex flex-col">
-        <DashboardNavbar title="Organisation Overview" />
-
+        <DashboardNavbar title="Organization Admin Dashboard" />
         <main className="flex-1 p-8 overflow-y-auto">
 
-          {/* Module 1 Banner */}
-          <div className="mb-8 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-6 py-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-emerald-400">✓ Module 1 — Authentication & RBAC</p>
-              <p className="text-xs text-muted-foreground mt-0.5">You are logged in as Org Admin. Manage your team members and their roles.</p>
-            </div>
-            <span className="text-[10px] px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-              Active Module
-            </span>
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white">Organization Admin Dashboard</h2>
+            <p className="text-muted-foreground text-sm mt-1">Manage your team members, projects, and invitations.</p>
           </div>
 
-          {/* Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
-                  <Users className="w-5 h-5" />
+          {isLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : !firstOrg ? (
+            <div className="bg-card border border-dashed border-border rounded-xl p-10 text-center">
+              <Building2 className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm font-medium text-white mb-1">No organization found</p>
+              <p className="text-xs text-muted-foreground mb-4">Create your first organization to get started.</p>
+              <Link href="/org-admin/organizations/new" className="inline-flex items-center gap-2 bg-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                Create Organization
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="bg-card border border-border rounded-xl p-5 mb-6 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Building2 className="w-6 h-6 text-primary" />
                 </div>
-              </div>
-              <h3 className="text-muted-foreground text-sm font-medium mb-1">Team Members</h3>
-              <div className="flex items-end gap-3">
-                <p className="text-3xl font-bold text-white">86</p>
-                <p className="text-sm text-muted-foreground mb-1">/ 100 limit</p>
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                  <FolderKanban className="w-5 h-5" />
+                <div>
+                  <h3 className="text-lg font-semibold text-white">{firstOrg.name}</h3>
+                  <p className="text-xs text-muted-foreground">/{firstOrg.slug} · {firstOrg.plan} Plan</p>
                 </div>
+                <Link href={`/org-admin/organizations/${firstOrg.id}`} className="ml-auto text-xs text-primary hover:text-blue-400 transition-colors">
+                  Manage →
+                </Link>
               </div>
-              <h3 className="text-muted-foreground text-sm font-medium mb-1">Active Projects</h3>
-              <p className="text-3xl font-bold text-white">12</p>
-            </div>
 
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
-                  <MailPlus className="w-5 h-5" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <StatCard label="Teams"            value={stats?.teamsCount ?? 0}          icon={Users2}     color="text-blue-400"    bg="bg-blue-500/10" />
+                <StatCard label="Members"          value={stats?.membersCount ?? 0}         icon={Users}      color="text-indigo-400"  bg="bg-indigo-500/10" />
+                <StatCard label="Pending Invites"  value={stats?.pendingInvitesCount ?? 0}  icon={MailPlus}   color="text-amber-400"   bg="bg-amber-500/10" />
+                <StatCard label="Projects"         value={stats?.projectsCount ?? 0}        icon={FolderKanban} color="text-emerald-400" bg="bg-emerald-500/10" />
+              </div>
+
+              <div className="bg-card border border-border rounded-xl shadow-sm">
+                <div className="p-6 border-b border-border flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-white">Members ({members.length})</h2>
+                  <Link href={`/org-admin/organizations/${firstOrg.id}`} className="text-xs text-primary hover:text-blue-400 transition-colors">
+                    View All →
+                  </Link>
                 </div>
+                {members.length === 0 ? (
+                  <div className="p-10 text-center text-sm text-muted-foreground">No members yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-background/50 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                          <th className="px-6 py-3 font-medium">Name</th>
+                          <th className="px-6 py-3 font-medium">Email</th>
+                          <th className="px-6 py-3 font-medium">Role</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm divide-y divide-border/50">
+                        {members.slice(0, 8).map(m => (
+                          <tr key={m.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                  {m.userName?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
+                                <span className="font-medium text-white">{m.userName}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-muted-foreground">{m.userEmail}</td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs px-2 py-0.5 rounded border bg-slate-500/10 text-slate-400 border-slate-500/20">
+                                {m.role}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-              <h3 className="text-muted-foreground text-sm font-medium mb-1">Pending Invites</h3>
-              <p className="text-3xl font-bold text-white">4</p>
-            </div>
-
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-              </div>
-              <h3 className="text-muted-foreground text-sm font-medium mb-1">Roles Assigned</h3>
-              <p className="text-3xl font-bold text-white">82</p>
-            </div>
-          </div>
-
-          {/* Coming Soon + Quick Actions Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <ComingSoonCard
-              icon={BarChart2}
-              title="Department Analytics"
-              description="Breakdown of team members across departments and roles."
-              module="Coming Soon — Module 7"
-            />
-            <ComingSoonCard
-              icon={Cpu}
-              title="AI Resource Optimiser"
-              description="AI-driven staffing and workload recommendations."
-              module="Coming Soon — Module 10"
-            />
-
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col">
-              <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
-              <div className="space-y-2 flex-1 flex flex-col justify-center">
-                <button className="w-full flex items-center justify-center p-3 rounded-lg bg-primary text-white hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/20 font-medium text-sm">
-                  Invite Member
-                </button>
-                <button className="w-full flex items-center justify-center p-3 rounded-lg bg-background border border-border hover:border-primary/50 text-white transition-colors font-medium text-sm">
-                  Create Project
-                </button>
-                <button className="w-full flex items-center justify-center p-3 rounded-lg bg-background border border-border hover:border-primary/50 text-white transition-colors font-medium text-sm">
-                  Manage Roles
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Members Table */}
-            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden lg:col-span-2">
-              <div className="p-6 border-b border-border flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Team Members & Roles</h2>
-                <input
-                  type="text"
-                  placeholder="Search members..."
-                  className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary"
-                />
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground bg-background/50">
-                      <th className="px-6 py-3 font-medium">Name</th>
-                      <th className="px-6 py-3 font-medium">Role</th>
-                      <th className="px-6 py-3 font-medium">Department</th>
-                      <th className="px-6 py-3 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {teamMembers.map((member) => (
-                      <tr key={member.id} className="border-b border-border/50 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
-                            {member.name.charAt(0)}
-                          </div>
-                          {member.name}
-                        </td>
-                        <td className="px-6 py-4 text-muted-foreground">{member.role}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{member.dept}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${member.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
-                            {member.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Activity Feed */}
-            <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col">
-              <div className="p-6 border-b border-border">
-                <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-              </div>
-              <div className="p-6 flex-1">
-                <div className="relative border-l border-border/50 ml-3 space-y-6">
-                  {recentActivity.map((activity) => (
-                    <div key={activity.id} className="relative pl-6">
-                      <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(37,99,235,0.8)]" />
-                      <p className="text-sm text-white mb-1">{activity.text}</p>
-                      <p className="text-xs text-muted-foreground">{activity.time}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </main>
       </div>
     </div>
