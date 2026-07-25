@@ -2,9 +2,11 @@ package com.neuroforge.backend.service;
 
 import com.neuroforge.backend.dto.CreateTaskRequest;
 import com.neuroforge.backend.dto.TaskResponse;
+import com.neuroforge.backend.dto.TaskStatusHistoryResponse;
 import com.neuroforge.backend.dto.UpdateTaskStatusRequest;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
+import com.neuroforge.backend.entity.TaskStatusHistory;
 import com.neuroforge.backend.entity.User;
 import com.neuroforge.backend.enums.TaskPriority;
 import com.neuroforge.backend.enums.TaskStatus;
@@ -12,11 +14,13 @@ import com.neuroforge.backend.exception.InvalidTaskStateException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
 import com.neuroforge.backend.repository.SprintRepository;
 import com.neuroforge.backend.repository.TaskRepository;
+import com.neuroforge.backend.repository.TaskStatusHistoryRepository;
 import com.neuroforge.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -28,6 +32,8 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final SprintRepository sprintRepository;
     private final UserRepository userRepository;
+    private final TaskStatusHistoryRepository taskStatusHistoryRepository;
+    private final CurrentUserContextService currentUserContextService;
 
     @Transactional
     public TaskResponse createTask(CreateTaskRequest request) {
@@ -184,6 +190,17 @@ public class TaskService {
 
         task.setStatus(newStatus);
         Task updated = taskRepository.save(task);
+
+        String changedBy = getChangedBy();
+        TaskStatusHistory history = TaskStatusHistory.builder()
+                .task(updated)
+                .previousStatus(currentStatus)
+                .newStatus(newStatus)
+                .changedBy(changedBy)
+                .changedAt(LocalDateTime.now())
+                .build();
+        taskStatusHistoryRepository.save(history);
+
         return mapToResponse(updated);
     }
 
@@ -254,6 +271,40 @@ public class TaskService {
                 .createdBy(task.getCreatedBy())
                 .updatedAt(task.getUpdatedAt())
                 .updatedBy(task.getUpdatedBy())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskStatusHistoryResponse> getTaskStatusHistory(UUID taskId) {
+        if (!taskRepository.existsById(taskId)) {
+            throw new ResourceNotFoundException("Task not found with ID: " + taskId);
+        }
+        return taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(taskId).stream()
+                .map(this::mapToHistoryResponse)
+                .collect(Collectors.toList());
+    }
+
+    private String getChangedBy() {
+        if (currentUserContextService != null) {
+            try {
+                String email = currentUserContextService.getCurrentUserEmail();
+                if (email != null && !email.isBlank()) {
+                    return email;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return "SYSTEM";
+    }
+
+    private TaskStatusHistoryResponse mapToHistoryResponse(TaskStatusHistory history) {
+        return TaskStatusHistoryResponse.builder()
+                .id(history.getId())
+                .taskId(history.getTask() != null ? history.getTask().getId() : null)
+                .previousStatus(history.getPreviousStatus())
+                .newStatus(history.getNewStatus())
+                .changedBy(history.getChangedBy())
+                .changedAt(history.getChangedAt())
                 .build();
     }
 }

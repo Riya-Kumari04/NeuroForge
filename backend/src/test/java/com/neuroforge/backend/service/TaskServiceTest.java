@@ -1,9 +1,11 @@
 package com.neuroforge.backend.service;
 
 import com.neuroforge.backend.dto.TaskResponse;
+import com.neuroforge.backend.dto.TaskStatusHistoryResponse;
 import com.neuroforge.backend.dto.UpdateTaskStatusRequest;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
+import com.neuroforge.backend.entity.TaskStatusHistory;
 import com.neuroforge.backend.entity.User;
 import com.neuroforge.backend.enums.TaskPriority;
 import com.neuroforge.backend.enums.TaskStatus;
@@ -11,6 +13,7 @@ import com.neuroforge.backend.exception.InvalidTaskStateException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
 import com.neuroforge.backend.repository.SprintRepository;
 import com.neuroforge.backend.repository.TaskRepository;
+import com.neuroforge.backend.repository.TaskStatusHistoryRepository;
 import com.neuroforge.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +22,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +43,9 @@ public class TaskServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private TaskStatusHistoryRepository taskStatusHistoryRepository;
 
     @InjectMocks
     private TaskService taskService;
@@ -178,5 +185,30 @@ public class TaskServiceTest {
         assertEquals(1, taskService.getTasksByStatus(TaskStatus.TODO).size());
         assertEquals(1, taskService.getTasksByPriority(TaskPriority.HIGH).size());
         assertEquals(1, taskService.searchTasks("auth").size());
+    }
+
+    @Test
+    void getTaskStatusHistory_Success() {
+        when(taskRepository.existsById(taskId)).thenReturn(true);
+
+        TaskStatusHistory historyItem = TaskStatusHistory.builder()
+                .id(UUID.randomUUID())
+                .task(task)
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedBy("SYSTEM")
+                .changedAt(LocalDateTime.now())
+                .build();
+
+        when(taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(taskId))
+                .thenReturn(Collections.singletonList(historyItem));
+
+        List<TaskStatusHistoryResponse> history = taskService.getTaskStatusHistory(taskId);
+
+        assertNotNull(history);
+        assertEquals(1, history.size());
+        assertEquals(TaskStatus.TODO, history.get(0).getPreviousStatus());
+        assertEquals(TaskStatus.IN_PROGRESS, history.get(0).getNewStatus());
+        assertEquals("SYSTEM", history.get(0).getChangedBy());
     }
 }

@@ -1,6 +1,7 @@
 package com.neuroforge.backend.controller;
 
 import com.neuroforge.backend.dto.TaskResponse;
+import com.neuroforge.backend.dto.TaskStatusHistoryResponse;
 import com.neuroforge.backend.dto.UpdateTaskStatusRequest;
 import com.neuroforge.backend.enums.TaskPriority;
 import com.neuroforge.backend.enums.TaskStatus;
@@ -14,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -127,5 +129,27 @@ public class TaskControllerTest {
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertNotNull(result.getBody());
         assertEquals(1, result.getBody().size());
+    }
+
+    @Test
+    void getTaskStatusHistory_ReturnsOk() {
+        TaskStatusHistoryResponse historyItem = TaskStatusHistoryResponse.builder()
+                .id(UUID.randomUUID())
+                .taskId(taskId)
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedBy("SYSTEM")
+                .changedAt(LocalDateTime.now())
+                .build();
+
+        when(taskService.getTaskStatusHistory(taskId)).thenReturn(Collections.singletonList(historyItem));
+
+        ResponseEntity<List<TaskStatusHistoryResponse>> result = taskController.getTaskStatusHistory(taskId);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertNotNull(result.getBody());
+        assertEquals(1, result.getBody().size());
+        assertEquals(TaskStatus.TODO, result.getBody().get(0).getPreviousStatus());
+        assertEquals(TaskStatus.IN_PROGRESS, result.getBody().get(0).getNewStatus());
     }
 }

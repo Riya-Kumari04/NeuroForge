@@ -2,6 +2,7 @@ package com.neuroforge.backend.controller;
 
 import com.neuroforge.backend.dto.CreateTaskRequest;
 import com.neuroforge.backend.dto.TaskResponse;
+import com.neuroforge.backend.dto.TaskStatusHistoryResponse;
 import com.neuroforge.backend.dto.UpdateTaskStatusRequest;
 import com.neuroforge.backend.enums.TaskPriority;
 import com.neuroforge.backend.enums.TaskStatus;
@@ -128,6 +129,12 @@ public class TaskController {
             @PathVariable UUID taskId,
             @Valid @RequestBody UpdateTaskStatusRequest request) {
         TaskResponse response = taskService.updateTaskStatus(taskId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{taskId}/history")
+    public ResponseEntity<List<TaskStatusHistoryResponse>> getTaskStatusHistory(@PathVariable UUID taskId) {
+        List<TaskStatusHistoryResponse> response = taskService.getTaskStatusHistory(taskId);
         return ResponseEntity.ok(response);
     }
 }
