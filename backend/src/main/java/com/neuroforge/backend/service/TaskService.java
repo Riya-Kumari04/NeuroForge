@@ -2,11 +2,13 @@ package com.neuroforge.backend.service;
 
 import com.neuroforge.backend.dto.CreateTaskRequest;
 import com.neuroforge.backend.dto.TaskResponse;
+import com.neuroforge.backend.dto.UpdateTaskStatusRequest;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
 import com.neuroforge.backend.entity.User;
 import com.neuroforge.backend.enums.TaskPriority;
 import com.neuroforge.backend.enums.TaskStatus;
+import com.neuroforge.backend.exception.InvalidTaskStateException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
 import com.neuroforge.backend.repository.SprintRepository;
 import com.neuroforge.backend.repository.TaskRepository;
@@ -114,6 +116,127 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + id));
         taskRepository.delete(task);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getBacklogTasks() {
+        return taskRepository.findBySprintIsNull().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public TaskResponse assignSprint(UUID taskId, UUID sprintId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with ID: " + sprintId));
+
+        task.setSprint(sprint);
+        Task updated = taskRepository.save(task);
+        return mapToResponse(updated);
+    }
+
+    @Transactional
+    public TaskResponse removeSprint(UUID taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+
+        task.setSprint(null);
+        Task updated = taskRepository.save(task);
+        return mapToResponse(updated);
+    }
+
+    @Transactional
+    public TaskResponse assignUser(UUID taskId, UUID userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+
+        task.setAssignee(user);
+        Task updated = taskRepository.save(task);
+        return mapToResponse(updated);
+    }
+
+    @Transactional
+    public TaskResponse removeUser(UUID taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+
+        task.setAssignee(null);
+        Task updated = taskRepository.save(task);
+        return mapToResponse(updated);
+    }
+
+    @Transactional
+    public TaskResponse updateTaskStatus(UUID taskId, UpdateTaskStatusRequest request) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+
+        TaskStatus currentStatus = task.getStatus();
+        TaskStatus newStatus = request.getStatus();
+
+        if (!isValidStatusTransition(currentStatus, newStatus)) {
+            throw new InvalidTaskStateException(
+                    "Invalid task status transition from " + currentStatus + " to " + newStatus);
+        }
+
+        task.setStatus(newStatus);
+        Task updated = taskRepository.save(task);
+        return mapToResponse(updated);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getTasksByStatus(TaskStatus status) {
+        return taskRepository.findByStatus(status).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getTasksByPriority(TaskPriority priority) {
+        return taskRepository.findByPriority(priority).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getTasksBySprint(UUID sprintId) {
+        if (!sprintRepository.existsById(sprintId)) {
+            throw new ResourceNotFoundException("Sprint not found with ID: " + sprintId);
+        }
+        return taskRepository.findBySprintId(sprintId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getTasksByAssignee(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found with ID: " + userId);
+        }
+        return taskRepository.findByAssigneeId(userId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> searchTasks(String keyword) {
+        String searchKw = keyword != null ? keyword : "";
+        return taskRepository.findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(searchKw, searchKw).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    private boolean isValidStatusTransition(TaskStatus currentStatus, TaskStatus newStatus) {
+        if (currentStatus == null || newStatus == null) {
+            return false;
+        }
+        return (currentStatus == TaskStatus.TODO && newStatus == TaskStatus.IN_PROGRESS)
+                || (currentStatus == TaskStatus.IN_PROGRESS && newStatus == TaskStatus.CODE_REVIEW)
+                || (currentStatus == TaskStatus.CODE_REVIEW && newStatus == TaskStatus.TESTING)
+                || (currentStatus == TaskStatus.TESTING && newStatus == TaskStatus.DONE);
     }
 
     private TaskResponse mapToResponse(Task task) {

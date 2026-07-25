@@ -51,6 +51,12 @@ public class Sprint extends BaseEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    @Column(name = "actual_start_date")
+    private LocalDate actualStartDate;
+
+    @Column(name = "actual_end_date")
+    private LocalDate actualEndDate;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private SprintStatus status;

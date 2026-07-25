@@ -7,25 +7,26 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SprintResponse {
+public class SprintSummaryResponse {
     private UUID id;
     private String name;
+    private SprintStatus status;
     private String goal;
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalDate actualStartDate;
     private LocalDate actualEndDate;
-    private SprintStatus status;
-    private UUID teamId;
-    private LocalDateTime createdAt;
-    private String createdBy;
-    private LocalDateTime updatedAt;
-    private String updatedBy;
+    private long totalTasks;
+    private long completedTasks;
+    private long remainingTasks;
+    private double completionPercentage;
+    private int totalStoryPoints;
+    private int completedStoryPoints;
+    private int remainingStoryPoints;
 }
