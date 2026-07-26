@@ -33,54 +33,61 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
 
     private static final String[] PUBLIC_PATHS = {
-        "/auth/**",
-        "/api/invitations/accept",
-        "/api/invitations/reject",
-        "/api/invitations/validate",
-        "/swagger-ui/**",
-        "/swagger-ui.html",
-        "/api-docs/**",
-        "/v3/api-docs/**",
-        "/error"
+            "/auth/**",
+            "/api/invitations/accept",
+            "/api/invitations/reject",
+            "/api/invitations/validate",
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/api-docs/**",
+            "/v3/api-docs/**",
+            "/error"
     };
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    return http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(PUBLIC_PATHS).permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers(PUBLIC_PATHS).permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Super admin only
-                .requestMatchers("/api/admin/**").hasAuthority("ROLE_SUPER_ADMIN")
+                    // Temporary: Allow Repository API without JWT for testing
+                    .requestMatchers("/api/repositories/**").permitAll()
 
-                // Org management
-                .requestMatchers("/api/organizations/**").hasAnyAuthority(
-                        "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
+                    // Super admin only
+                    .requestMatchers("/api/admin/**").hasAuthority("ROLE_SUPER_ADMIN")
 
-                // Invitation management (send/list/cancel) — org-level protected
-                .requestMatchers("/api/invitations/**").authenticated()
+                    // Org management
+                    .requestMatchers("/api/organizations/**").hasAnyAuthority(
+                            "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
 
-                // Current user profile & preferences — any authenticated user
-                .requestMatchers("/api/users/me/**").authenticated()
-                .requestMatchers("/api/users/me").authenticated()
+                    // Invitation management
+                    .requestMatchers("/api/invitations/**").authenticated()
 
-                // Notifications — any authenticated user
-                .requestMatchers("/api/notifications/**").authenticated()
+                    // Current user profile
+                    .requestMatchers("/api/users/me/**").authenticated()
+                    .requestMatchers("/api/users/me").authenticated()
 
-                // Global search — any authenticated user
-                .requestMatchers("/api/search/**").authenticated()
+                    // Notifications
+                    .requestMatchers("/api/notifications/**").authenticated()
 
-                // Dashboard — all authenticated users
-                .requestMatchers("/api/dashboard/**").authenticated()
+                    // Global search
+                    .requestMatchers("/api/search/**").authenticated()
 
-                // Project management — PM, Org Admin, Super Admin
-                .requestMatchers("/api/projects/**").hasAnyAuthority(
-                        "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN", "ROLE_PROJECT_MANAGER",
-                        "ROLE_DEVELOPER", "ROLE_TESTER", "ROLE_CLIENT")
+                    // Dashboard
+                    .requestMatchers("/api/dashboard/**").authenticated()
+
+                    // Project management
+                    .requestMatchers("/api/projects/**").hasAnyAuthority(
+                            "ROLE_SUPER_ADMIN",
+                            "ROLE_ORG_ADMIN",
+                            "ROLE_PROJECT_MANAGER",
+                            "ROLE_DEVELOPER",
+                            "ROLE_TESTER",
+                            "ROLE_CLIENT")
 
                 // Sprint management — all roles can READ; writes restricted via @PreAuthorize
                 .requestMatchers("/api/sprints/**").authenticated()

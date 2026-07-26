@@ -20,6 +20,7 @@ D:\vscode\NeuroForge\NeuroForge-Backend\src\main\java\com\neuroforge\backend\ent
 D:\vscode\NeuroForge\NeuroForge-Backend\src\main\java\com\neuroforge\backend\entity\User.java
 D:\vscode\NeuroForge\NeuroForge-Backend\src\main\java\com\neuroforge\backend\exception\AppException.java
 D:\vscode\NeuroForge\NeuroForge-Backend\src\main\java\com\neuroforge\backend\exception\GlobalExceptionHandler.java
+D:\vscode\NeuroForge\NeuroForge-Backend\src\main\java\com\neuroforge\backend\integration\controller\RepositoryConnectionController.java
 D:\vscode\NeuroForge\NeuroForge-Backend\src\main\java\com\neuroforge\backend\integration\dto\ConnectRepositoryRequest.java
 D:\vscode\NeuroForge\NeuroForge-Backend\src\main\java\com\neuroforge\backend\integration\dto\RepositoryConnectionResponse.java
 D:\vscode\NeuroForge\NeuroForge-Backend\src\main\java\com\neuroforge\backend\integration\entity\CommitCache.java

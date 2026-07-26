@@ -49,6 +49,7 @@ com\neuroforge\backend\project\dto\ProjectStatsDto.class
 com\neuroforge\backend\organization\controller\OrganizationController.class
 com\neuroforge\backend\controller\AuthController.class
 com\neuroforge\backend\dto\ApiResponse$ApiResponseBuilder.class
+com\neuroforge\backend\integration\controller\RepositoryConnectionController.class
 com\neuroforge\backend\organization\entity\InviteStatus.class
 com\neuroforge\backend\project\repository\ProjectRepository.class
 com\neuroforge\backend\project\service\DashboardService.class
