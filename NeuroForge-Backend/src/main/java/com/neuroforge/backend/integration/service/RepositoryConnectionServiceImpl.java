@@ -7,6 +7,9 @@ import com.neuroforge.backend.integration.dto.RepositoryConnectionResponse;
 import com.neuroforge.backend.integration.entity.RepositoryConnection;
 import com.neuroforge.backend.integration.repository.RepositoryConnectionRepository;
 import lombok.RequiredArgsConstructor;
+import com.neuroforge.backend.integration.dto.RepositorySyncResponse;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +52,29 @@ public class RepositoryConnectionServiceImpl implements RepositoryConnectionServ
                                 "Repository connected successfully",
                                 response);
 
+        }
+
+        @Override
+        public ApiResponse<RepositorySyncResponse> syncRepository(Long repositoryId) {
+
+                RepositoryConnection repository = repositoryConnectionRepository
+                                .findById(repositoryId)
+                                .orElseThrow(() -> AppException.notFound("Repository not found"));
+
+                repository.setLastSyncTime(LocalDateTime.now());
+
+                repository = repositoryConnectionRepository.save(repository);
+
+                RepositorySyncResponse response = RepositorySyncResponse.builder()
+                                .id(repository.getId())
+                                .repositoryUrl(repository.getRepositoryUrl())
+                                .lastSyncedAt(repository.getLastSyncTime())
+                                .message("Repository synced successfully")
+                                .build();
+
+                return ApiResponse.ok(
+                                "Repository synced successfully",
+                                response);
         }
 
         @Override

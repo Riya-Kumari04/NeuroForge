@@ -6,11 +6,15 @@ import com.neuroforge.backend.dto.ApiResponse;
 import com.neuroforge.backend.integration.dto.ConnectRepositoryRequest;
 import com.neuroforge.backend.integration.dto.RepositoryConnectionResponse;
 
+import com.neuroforge.backend.integration.dto.RepositorySyncResponse;
+
 public interface RepositoryConnectionService {
 
     ApiResponse<RepositoryConnectionResponse> connectRepository(
             ConnectRepositoryRequest request);
 
     ApiResponse<List<RepositoryConnectionResponse>> getAllRepositories();
+
+    ApiResponse<RepositorySyncResponse> syncRepository(Long repositoryId);
 
 }
