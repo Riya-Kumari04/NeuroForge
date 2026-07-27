@@ -1,14 +1,28 @@
 package com.neuroforge.backend.integration.service;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import com.neuroforge.backend.dto.ApiResponse;
+import com.neuroforge.backend.integration.repository.TaskCommitLinkRepository;
+import com.neuroforge.backend.integration.entity.TaskCommitLink;
 import com.neuroforge.backend.exception.AppException;
 import com.neuroforge.backend.integration.dto.ConnectRepositoryRequest;
 import com.neuroforge.backend.integration.dto.RepositoryConnectionResponse;
 import com.neuroforge.backend.integration.entity.RepositoryConnection;
 import com.neuroforge.backend.integration.repository.RepositoryConnectionRepository;
 import lombok.RequiredArgsConstructor;
+import com.neuroforge.backend.integration.entity.CommitCache;
+
+import com.neuroforge.backend.integration.repository.CommitCacheRepository;
+
 import com.neuroforge.backend.integration.dto.RepositorySyncResponse;
 
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
+import java.util.Map;
+import java.time.OffsetDateTime;
+// import java.net.http.HttpHeaders;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -20,6 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class RepositoryConnectionServiceImpl implements RepositoryConnectionService {
 
         private final RepositoryConnectionRepository repositoryConnectionRepository;
+        private final RestTemplate restTemplate;
+        private final CommitCacheRepository commitCacheRepository;
+        private final TaskCommitLinkRepository taskCommitLinkRepository;
 
         @Override
         public ApiResponse<RepositoryConnectionResponse> connectRepository(
@@ -61,9 +78,30 @@ public class RepositoryConnectionServiceImpl implements RepositoryConnectionServ
                                 .findById(repositoryId)
                                 .orElseThrow(() -> AppException.notFound("Repository not found"));
 
-                repository.setLastSyncTime(LocalDateTime.now());
+                String repoUrl = repository.getRepositoryUrl();
 
-                repository = repositoryConnectionRepository.save(repository);
+                String path = repoUrl
+                                .replace("https://github.com/", "")
+                                .replace(".git", "");
+
+                String apiUrl = "https://api.github.com/repos/" + path + "/commits";
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setBearerAuth(repository.getAccessToken());
+                headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+                HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+                ResponseEntity<List> githubResponse = restTemplate.exchange(
+                                apiUrl,
+                                HttpMethod.GET,
+                                entity,
+                                List.class);
+
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> commits = (List<Map<String, Object>>) githubResponse.getBody();
+                repository.setLastSyncTime(LocalDateTime.now());
+                repositoryConnectionRepository.save(repository);
 
                 RepositorySyncResponse response = RepositorySyncResponse.builder()
                                 .id(repository.getId())
@@ -71,6 +109,51 @@ public class RepositoryConnectionServiceImpl implements RepositoryConnectionServ
                                 .lastSyncedAt(repository.getLastSyncTime())
                                 .message("Repository synced successfully")
                                 .build();
+
+                if (commits != null) {
+
+                        for (Map<String, Object> commit : commits) {
+
+                                String sha = (String) commit.get("sha");
+
+                                if (commitCacheRepository.existsByCommitSha(sha)) {
+                                        continue;
+                                }
+
+                                Map<String, Object> commitInfo = (Map<String, Object>) commit.get("commit");
+
+                                Map<String, Object> author = (Map<String, Object>) commitInfo.get("author");
+
+                                CommitCache commitCache = CommitCache.builder()
+                                                .commitSha(sha)
+                                                .authorName((String) author.get("name"))
+                                                .commitMessage((String) commitInfo.get("message"))
+                                                .commitUrl((String) commit.get("html_url"))
+                                                .branchName(repository.getDefaultBranch())
+                                                .committedAt(
+                                                                OffsetDateTime.parse((String) author.get("date"))
+                                                                                .toLocalDateTime())
+                                                .repositoryConnection(repository)
+                                                .build();
+
+                                commitCache = commitCacheRepository.save(commitCache);
+
+                                String message = commitCache.getCommitMessage();
+
+                                Pattern pattern = Pattern.compile("NF-\\d+");
+                                Matcher matcher = pattern.matcher(message);
+
+                                while (matcher.find()) {
+
+                                        TaskCommitLink link = TaskCommitLink.builder()
+                                                        .taskKey(matcher.group())
+                                                        .commit(commitCache)
+                                                        .build();
+
+                                        taskCommitLinkRepository.save(link);
+                                }
+                        }
+                }
 
                 return ApiResponse.ok(
                                 "Repository synced successfully",
