@@ -22,7 +22,7 @@ import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 import java.util.Map;
 import java.time.OffsetDateTime;
-// import java.net.http.HttpHeaders;
+import com.neuroforge.backend.integration.dto.TaskCommitResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -178,5 +178,30 @@ public class RepositoryConnectionServiceImpl implements RepositoryConnectionServ
                 return ApiResponse.ok(
                                 "Repositories fetched successfully",
                                 repositories);
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public ApiResponse<List<TaskCommitResponse>> getTaskCommits(String taskKey) {
+
+                List<TaskCommitResponse> commits = taskCommitLinkRepository.findByTaskKey(taskKey)
+                                .stream()
+                                .map(link -> {
+                                        CommitCache commit = link.getCommit();
+
+                                        return TaskCommitResponse.builder()
+                                                        .commitSha(commit.getCommitSha())
+                                                        .commitMessage(commit.getCommitMessage())
+                                                        .authorName(commit.getAuthorName())
+                                                        .commitUrl(commit.getCommitUrl())
+                                                        .branchName(commit.getBranchName())
+                                                        .committedAt(commit.getCommittedAt())
+                                                        .build();
+                                })
+                                .toList();
+
+                return ApiResponse.ok(
+                                "Task commits fetched successfully",
+                                commits);
         }
 }
