@@ -8,6 +8,7 @@ import com.neuroforge.backend.integration.dto.RepositoryConnectionResponse;
 import com.neuroforge.backend.integration.dto.TaskCommitResponse;
 import com.neuroforge.backend.integration.dto.RepositorySyncResponse;
 
+
 public interface RepositoryConnectionService {
 
     ApiResponse<RepositoryConnectionResponse> connectRepository(
@@ -18,5 +19,6 @@ public interface RepositoryConnectionService {
     ApiResponse<RepositorySyncResponse> syncRepository(Long repositoryId);
 
     ApiResponse<List<TaskCommitResponse>> getTaskCommits(String taskKey);
+    
 
 }
