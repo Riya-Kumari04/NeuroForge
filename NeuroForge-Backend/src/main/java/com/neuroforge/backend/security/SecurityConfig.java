@@ -45,69 +45,73 @@ public class SecurityConfig {
     };
 
     @Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    return http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                    .requestMatchers(PUBLIC_PATHS).permitAll()
-                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PUBLIC_PATHS).permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                    // Temporary: Allow Repository API without JWT for testing
-                    .requestMatchers("/api/repositories/**").permitAll()
+                        // Temporary: Allow Repository API without JWT for testing
+                        .requestMatchers("/api/repositories/**").permitAll()
+                        
+                        // Temporary: Allow Pipeline API without JWT for testing
+                        .requestMatchers("/api/pipelines/**").permitAll()
 
-                    // Super admin only
-                    .requestMatchers("/api/admin/**").hasAuthority("ROLE_SUPER_ADMIN")
+                        // Super admin only
+                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_SUPER_ADMIN")
 
-                    // Org management
-                    .requestMatchers("/api/organizations/**").hasAnyAuthority(
-                            "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
+                        // Org management
+                        .requestMatchers("/api/organizations/**").hasAnyAuthority(
+                                "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
 
-                    // Invitation management
-                    .requestMatchers("/api/invitations/**").authenticated()
+                        // Invitation management
+                        .requestMatchers("/api/invitations/**").authenticated()
 
-                    // Current user profile
-                    .requestMatchers("/api/users/me/**").authenticated()
-                    .requestMatchers("/api/users/me").authenticated()
+                        // Current user profile
+                        .requestMatchers("/api/users/me/**").authenticated()
+                        .requestMatchers("/api/users/me").authenticated()
 
-                    // Notifications
-                    .requestMatchers("/api/notifications/**").authenticated()
+                        // Notifications
+                        .requestMatchers("/api/notifications/**").authenticated()
 
-                    // Global search
-                    .requestMatchers("/api/search/**").authenticated()
+                        // Global search
+                        .requestMatchers("/api/search/**").authenticated()
 
-                    // Dashboard
-                    .requestMatchers("/api/dashboard/**").authenticated()
+                        // Dashboard
+                        .requestMatchers("/api/dashboard/**").authenticated()
 
-                    // Project management
-                    .requestMatchers("/api/projects/**").hasAnyAuthority(
-                            "ROLE_SUPER_ADMIN",
-                            "ROLE_ORG_ADMIN",
-                            "ROLE_PROJECT_MANAGER",
-                            "ROLE_DEVELOPER",
-                            "ROLE_TESTER",
-                            "ROLE_CLIENT")
+                        // Project management
+                        .requestMatchers("/api/projects/**").hasAnyAuthority(
+                                "ROLE_SUPER_ADMIN",
+                                "ROLE_ORG_ADMIN",
+                                "ROLE_PROJECT_MANAGER",
+                                "ROLE_DEVELOPER",
+                                "ROLE_TESTER",
+                                "ROLE_CLIENT")
 
-                // Sprint management — all roles can READ; writes restricted via @PreAuthorize
-                .requestMatchers("/api/sprints/**").authenticated()
+                        // Sprint management — all roles can READ; writes restricted via @PreAuthorize
+                        .requestMatchers("/api/sprints/**").authenticated()
 
-                // Task management — all roles can READ; create/delete restricted via @PreAuthorize
-                .requestMatchers("/api/tasks/**").hasAnyAuthority(
-                        "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN", "ROLE_PROJECT_MANAGER",
-                        "ROLE_DEVELOPER", "ROLE_TESTER")
+                        // Task management — all roles can READ; create/delete restricted via
+                        // @PreAuthorize
+                        .requestMatchers("/api/tasks/**").hasAnyAuthority(
+                                "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN", "ROLE_PROJECT_MANAGER",
+                                "ROLE_DEVELOPER", "ROLE_TESTER")
 
-                // Project member management — all roles can READ (GET); writes via @PreAuthorize
-                .requestMatchers("/api/project-members/**").authenticated()
+                        // Project member management — all roles can READ (GET); writes via
+                        // @PreAuthorize
+                        .requestMatchers("/api/project-members/**").authenticated()
 
-                // User admin list — super admin / org admin only
-                .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
+                        // User admin list — super admin / org admin only
+                        .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
 
-                .anyRequest().authenticated()
-            )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .build();
+                        .anyRequest().authenticated())
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
     }
 
     @Bean
