@@ -21,5 +21,5 @@ public class ReleaseTask {
     private Release release;
 
     @Column(nullable = false)
-    private String taskKey;
+    private Long taskId;
 }
