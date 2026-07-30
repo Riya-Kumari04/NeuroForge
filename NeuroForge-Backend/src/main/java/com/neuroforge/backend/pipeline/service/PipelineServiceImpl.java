@@ -42,14 +42,10 @@ public class PipelineServiceImpl implements PipelineService {
                                 .startedAt(LocalDateTime.now())
                                 .build();
 
-                run = pipelineRunRepository.save(run);
                 run = pipelineRunRepository.saveAndFlush(run);
 
                 System.out.println("Saved PipelineRun ID = " + run.getId());
                 System.out.println("Exists immediately = " + pipelineRunRepository.existsById(run.getId()));
-
-                // Start pipeline simulation asynchronously
-                pipelineSimulator.simulate(run.getId());
 
                 // Start pipeline simulation asynchronously
                 pipelineSimulator.simulate(run.getId());
@@ -143,6 +139,26 @@ public class PipelineServiceImpl implements PipelineService {
                 return ApiResponse.ok(
                                 "Release notes generated successfully",
                                 response);
+        }
+
+        @Override
+        public ApiResponse<String> approveProduction(Long runId) {
+
+                PipelineRun run = pipelineRunRepository.findById(runId)
+                                .orElseThrow(() -> AppException.notFound("Pipeline run not found"));
+
+                if (!"WAITING_FOR_APPROVAL".equals(run.getStatus())) {
+                        throw AppException.badRequest("Pipeline is not waiting for approval");
+                }
+
+                run.setStatus("APPROVED");
+                pipelineRunRepository.save(run);
+
+                pipelineSimulator.deployProduction(runId);
+
+                return ApiResponse.ok(
+                                "Production deployment approved",
+                                "Deployment started");
         }
 
 }

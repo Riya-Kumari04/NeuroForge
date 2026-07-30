@@ -2,7 +2,6 @@ package com.neuroforge.backend.pipeline.service;
 
 import com.neuroforge.backend.dto.ApiResponse;
 import com.neuroforge.backend.pipeline.dto.*;
-
 import java.util.List;
 
 public interface PipelineService {
@@ -14,4 +13,6 @@ public interface PipelineService {
     ApiResponse<ReleaseResponse> createRelease(CreateReleaseRequest request);
 
     ApiResponse<ReleaseNoteResponse> generateReleaseNotes(Long releaseId);
+
+    ApiResponse<String> approveProduction(Long runId);
 }
