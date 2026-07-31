@@ -9,5 +9,6 @@ import java.util.Optional;
 public interface PipelineRunRepository extends JpaRepository<PipelineRun, Long> {
 
     List<PipelineRun> findByPipelineId(Long pipelineId);
+    long countByStatus(String status);
 
 }
