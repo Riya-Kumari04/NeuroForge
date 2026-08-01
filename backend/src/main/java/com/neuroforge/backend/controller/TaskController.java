@@ -75,7 +75,7 @@ public class TaskController {
     }
 
     @GetMapping("/assignee/{userId}")
-    public ResponseEntity<List<TaskResponse>> getTasksByAssignee(@PathVariable UUID userId) {
+    public ResponseEntity<List<TaskResponse>> getTasksByAssignee(@PathVariable Long userId) {
         List<TaskResponse> response = taskService.getTasksByAssignee(userId);
         return ResponseEntity.ok(response);
     }
@@ -113,7 +113,7 @@ public class TaskController {
     }
 
     @PatchMapping("/{taskId}/assign-user/{userId}")
-    public ResponseEntity<TaskResponse> assignUser(@PathVariable UUID taskId, @PathVariable UUID userId) {
+    public ResponseEntity<TaskResponse> assignUser(@PathVariable UUID taskId, @PathVariable Long userId) {
         TaskResponse response = taskService.assignUser(taskId, userId);
         return ResponseEntity.ok(response);
     }

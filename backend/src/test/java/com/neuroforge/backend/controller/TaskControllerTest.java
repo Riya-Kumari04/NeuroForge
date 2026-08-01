@@ -35,14 +35,14 @@ public class TaskControllerTest {
 
     private UUID taskId;
     private UUID sprintId;
-    private UUID userId;
+    private Long userId;
     private TaskResponse taskResponse;
 
     @BeforeEach
     void setUp() {
         taskId = UUID.randomUUID();
         sprintId = UUID.randomUUID();
-        userId = UUID.randomUUID();
+        userId = 1L;
 
         taskResponse = TaskResponse.builder()
                 .id(taskId)

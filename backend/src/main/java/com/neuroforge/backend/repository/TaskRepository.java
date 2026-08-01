@@ -15,11 +15,11 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByStatus(TaskStatus status);
     List<Task> findByPriority(TaskPriority priority);
     List<Task> findBySprintId(UUID sprintId);
-    List<Task> findByAssigneeId(UUID userId);
+    List<Task> findByAssigneeId(Long userId);
     List<Task> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String titleKeyword, String descKeyword);
     long countBySprintId(UUID sprintId);
     long countBySprintIdAndStatus(UUID sprintId, TaskStatus status);
     long countBySprintIdAndPriority(UUID sprintId, TaskPriority priority);
-    long countBySprintIdAndAssigneeId(UUID sprintId, UUID assigneeId);
+    long countBySprintIdAndAssigneeId(UUID sprintId, Long assigneeId);
     long countBySprintIdAndAssigneeIsNull(UUID sprintId);
 }

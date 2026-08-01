@@ -3,14 +3,17 @@ package com.neuroforge.backend.service;
 import com.neuroforge.backend.dto.TaskResponse;
 import com.neuroforge.backend.dto.TaskStatusHistoryResponse;
 import com.neuroforge.backend.dto.UpdateTaskStatusRequest;
+import com.neuroforge.backend.entity.CodeReview;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
 import com.neuroforge.backend.entity.TaskStatusHistory;
 import com.neuroforge.backend.entity.User;
+import com.neuroforge.backend.enums.CodeReviewStatus;
 import com.neuroforge.backend.enums.TaskPriority;
 import com.neuroforge.backend.enums.TaskStatus;
 import com.neuroforge.backend.exception.InvalidTaskStateException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
+import com.neuroforge.backend.repository.CodeReviewRepository;
 import com.neuroforge.backend.repository.SprintRepository;
 import com.neuroforge.backend.repository.TaskRepository;
 import com.neuroforge.backend.repository.TaskStatusHistoryRepository;
@@ -47,12 +50,15 @@ public class TaskServiceTest {
     @Mock
     private TaskStatusHistoryRepository taskStatusHistoryRepository;
 
+    @Mock
+    private CodeReviewRepository codeReviewRepository;
+
     @InjectMocks
     private TaskService taskService;
 
     private UUID taskId;
     private UUID sprintId;
-    private UUID userId;
+    private Long userId;
     private Task task;
     private Sprint sprint;
     private User user;
@@ -61,7 +67,7 @@ public class TaskServiceTest {
     void setUp() {
         taskId = UUID.randomUUID();
         sprintId = UUID.randomUUID();
-        userId = UUID.randomUUID();
+        userId = 1L;
 
         sprint = Sprint.builder().id(sprintId).name("Sprint 1").build();
         user = new User(userId, "developer@neuroforge.com");
@@ -151,6 +157,8 @@ public class TaskServiceTest {
 
         // CODE_REVIEW -> TESTING
         task.setStatus(TaskStatus.CODE_REVIEW);
+        when(codeReviewRepository.findTopByTaskIdOrderByCreatedAtDesc(taskId))
+                .thenReturn(Optional.of(CodeReview.builder().status(CodeReviewStatus.ACCEPTED).build()));
         response = taskService.updateTaskStatus(taskId, new UpdateTaskStatusRequest(TaskStatus.TESTING));
         assertEquals(TaskStatus.TESTING, response.getStatus());
 

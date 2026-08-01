@@ -4,14 +4,17 @@ import com.neuroforge.backend.dto.CreateTaskRequest;
 import com.neuroforge.backend.dto.TaskResponse;
 import com.neuroforge.backend.dto.TaskStatusHistoryResponse;
 import com.neuroforge.backend.dto.UpdateTaskStatusRequest;
+import com.neuroforge.backend.entity.CodeReview;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
 import com.neuroforge.backend.entity.TaskStatusHistory;
 import com.neuroforge.backend.entity.User;
+import com.neuroforge.backend.enums.CodeReviewStatus;
 import com.neuroforge.backend.enums.TaskPriority;
 import com.neuroforge.backend.enums.TaskStatus;
 import com.neuroforge.backend.exception.InvalidTaskStateException;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
+import com.neuroforge.backend.repository.CodeReviewRepository;
 import com.neuroforge.backend.repository.SprintRepository;
 import com.neuroforge.backend.repository.TaskRepository;
 import com.neuroforge.backend.repository.TaskStatusHistoryRepository;
@@ -34,6 +37,7 @@ public class TaskService {
     private final UserRepository userRepository;
     private final TaskStatusHistoryRepository taskStatusHistoryRepository;
     private final CurrentUserContextService currentUserContextService;
+    private final CodeReviewRepository codeReviewRepository;
 
     @Transactional
     public TaskResponse createTask(CreateTaskRequest request) {
@@ -154,7 +158,7 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskResponse assignUser(UUID taskId, UUID userId) {
+    public TaskResponse assignUser(UUID taskId, Long userId) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
         User user = userRepository.findById(userId)
@@ -186,6 +190,17 @@ public class TaskService {
         if (!isValidStatusTransition(currentStatus, newStatus)) {
             throw new InvalidTaskStateException(
                     "Invalid task status transition from " + currentStatus + " to " + newStatus);
+        }
+
+        if (currentStatus == TaskStatus.CODE_REVIEW && newStatus == TaskStatus.TESTING) {
+            CodeReview latestReview = codeReviewRepository.findTopByTaskIdOrderByCreatedAtDesc(taskId)
+                    .orElseThrow(() -> new InvalidTaskStateException(
+                            "Task cannot move to TESTING because no completed code review exists."));
+
+            if (latestReview.getStatus() != CodeReviewStatus.ACCEPTED) {
+                throw new InvalidTaskStateException(
+                        "Task cannot move to TESTING until the latest code review is accepted.");
+            }
         }
 
         task.setStatus(newStatus);
@@ -229,7 +244,7 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public List<TaskResponse> getTasksByAssignee(UUID userId) {
+    public List<TaskResponse> getTasksByAssignee(Long userId) {
         if (!userRepository.existsById(userId)) {
             throw new ResourceNotFoundException("User not found with ID: " + userId);
         }

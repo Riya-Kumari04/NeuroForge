@@ -1,7 +1,7 @@
 package com.neuroforge.backend.dto;
 
-import com.neuroforge.backend.enums.TaskPriority;
-import com.neuroforge.backend.enums.TaskStatus;
+import com.neuroforge.backend.enums.CodeReviewStatus;
+import com.neuroforge.backend.enums.ReviewSource;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,16 +14,16 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskResponse {
+public class CodeReviewResponse {
     private UUID id;
-    private String title;
-    private String description;
-    private TaskStatus status;
-    private TaskPriority priority;
-    private Integer storyPoints;
-    private String labels;
-    private UUID sprintId;
-    private Long assigneeId;
+    private UUID taskId;
+    private Long requestedBy;
+    private Long approvedBy;
+    private CodeReviewStatus status;
+    private ReviewSource reviewSource;
+    private Integer overallScore;
+    private String summary;
+    private String sourceReference;
     private LocalDateTime createdAt;
     private String createdBy;
     private LocalDateTime updatedAt;
