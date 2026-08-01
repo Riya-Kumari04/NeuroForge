@@ -8,23 +8,29 @@ import com.neuroforge.backend.bug.dto.CreateBugRequest;
 import com.neuroforge.backend.dto.ApiResponse;
 
 import com.neuroforge.backend.bug.dto.SlaTimerResponse;
-
+import com.neuroforge.backend.bug.dto.DuplicateCheckResponse;
 import com.neuroforge.backend.bug.dto.UpdateBugStatusRequest;
 
 public interface BugService {
 
-    ApiResponse<BugResponse> createBug(CreateBugRequest request);
+        ApiResponse<BugResponse> createBug(CreateBugRequest request);
 
-    ApiResponse<List<BugResponse>> getAllBugs();
+        ApiResponse<List<BugResponse>> getAllBugs();
 
-    ApiResponse<BugResponse> getBugById(Long bugId);
+        ApiResponse<BugResponse> getBugById(Long bugId);
 
-    ApiResponse<BugResponse> updateBugStatus(
-            Long bugId,
-            UpdateBugStatusRequest request);
+        ApiResponse<BugResponse> updateBugStatus(
+                        Long bugId,
+                        UpdateBugStatusRequest request);
 
-    ApiResponse<List<IncidentResponse>> getAllIncidents();
+        ApiResponse<List<IncidentResponse>> getAllIncidents();
 
-    ApiResponse<SlaTimerResponse> getSlaTimer(Long incidentId);
+        ApiResponse<SlaTimerResponse> getSlaTimer(Long incidentId);
+
+        ApiResponse<IncidentResponse> resolveIncident(Long incidentId);
+
+
+        ApiResponse<DuplicateCheckResponse> checkDuplicate(
+                        CreateBugRequest request);
 
 }

@@ -2,12 +2,13 @@ package com.neuroforge.backend.bug.controller;
 
 import com.neuroforge.backend.bug.dto.BugResponse;
 import com.neuroforge.backend.bug.dto.CreateBugRequest;
+import com.neuroforge.backend.bug.dto.DuplicateCheckResponse;
 import com.neuroforge.backend.bug.service.BugService;
-// import com.neuroforge.backend.controller.RestController;
-// import com.neuroforge.backend.controller.RestController;
 // import com.neuroforge.backend.controller.RestController;
 import com.neuroforge.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import com.neuroforge.backend.bug.dto.IncidentResponse;
+
 import com.neuroforge.backend.bug.dto.SlaTimerResponse;
 
 import com.neuroforge.backend.bug.dto.UpdateBugStatusRequest;
@@ -58,6 +59,20 @@ public class BugController {
             @PathVariable Long incidentId) {
 
         return bugService.getSlaTimer(incidentId);
+    }
+
+    @PutMapping("/incidents/{incidentId}/resolve")
+    public ApiResponse<IncidentResponse> resolveIncident(
+            @PathVariable Long incidentId) {
+
+        return bugService.resolveIncident(incidentId);
+    }
+
+    @PostMapping("/check-duplicate")
+    public ApiResponse<DuplicateCheckResponse> checkDuplicate(
+            @RequestBody CreateBugRequest request) {
+
+        return bugService.checkDuplicate(request);
     }
 
 }
