@@ -29,119 +29,125 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthFilter;
-    private final CustomUserDetailsService userDetailsService;
+        private final JwtAuthenticationFilter jwtAuthFilter;
+        private final CustomUserDetailsService userDetailsService;
 
-    private static final String[] PUBLIC_PATHS = {
-            "/auth/**",
-            "/api/invitations/accept",
-            "/api/invitations/reject",
-            "/api/invitations/validate",
-            "/swagger-ui/**",
-            "/swagger-ui.html",
-            "/api-docs/**",
-            "/v3/api-docs/**",
-            "/error"
-    };
+        private static final String[] PUBLIC_PATHS = {
+                        "/auth/**",
+                        "/api/invitations/accept",
+                        "/api/invitations/reject",
+                        "/api/invitations/validate",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/api-docs/**",
+                        "/v3/api-docs/**",
+                        "/error"
+        };
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PUBLIC_PATHS).permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+                return http
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(PUBLIC_PATHS).permitAll()
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Temporary: Allow Repository API without JWT for testing
-                        .requestMatchers("/api/repositories/**").permitAll()
-                        
-                        // Temporary: Allow Pipeline API without JWT for testing
-                        .requestMatchers("/api/pipelines/**").permitAll()
+                                                // Temporary: Allow Repository API without JWT for testing
+                                                .requestMatchers("/api/repositories/**").permitAll()
 
-                        // Super admin only
-                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_SUPER_ADMIN")
+                                                // Temporary: Allow Pipeline API without JWT for testing
+                                                .requestMatchers("/api/pipelines/**").permitAll()
 
-                        // Org management
-                        .requestMatchers("/api/organizations/**").hasAnyAuthority(
-                                "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
+                                                // Temporary: Allow Bug API without JWT for testing
+                                                .requestMatchers("/api/bugs/**").permitAll()
 
-                        // Invitation management
-                        .requestMatchers("/api/invitations/**").authenticated()
+                                                // Super admin only
+                                                .requestMatchers("/api/admin/**").hasAuthority("ROLE_SUPER_ADMIN")
 
-                        // Current user profile
-                        .requestMatchers("/api/users/me/**").authenticated()
-                        .requestMatchers("/api/users/me").authenticated()
+                                                // Org management
+                                                .requestMatchers("/api/organizations/**").hasAnyAuthority(
+                                                                "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
 
-                        // Notifications
-                        .requestMatchers("/api/notifications/**").authenticated()
+                                                // Invitation management
+                                                .requestMatchers("/api/invitations/**").authenticated()
 
-                        // Global search
-                        .requestMatchers("/api/search/**").authenticated()
+                                                // Current user profile
+                                                .requestMatchers("/api/users/me/**").authenticated()
+                                                .requestMatchers("/api/users/me").authenticated()
 
-                        // Dashboard
-                        .requestMatchers("/api/dashboard/**").authenticated()
+                                                // Notifications
+                                                .requestMatchers("/api/notifications/**").authenticated()
 
-                        // Project management
-                        .requestMatchers("/api/projects/**").hasAnyAuthority(
-                                "ROLE_SUPER_ADMIN",
-                                "ROLE_ORG_ADMIN",
-                                "ROLE_PROJECT_MANAGER",
-                                "ROLE_DEVELOPER",
-                                "ROLE_TESTER",
-                                "ROLE_CLIENT")
+                                                // Global search
+                                                .requestMatchers("/api/search/**").authenticated()
 
-                        // Sprint management — all roles can READ; writes restricted via @PreAuthorize
-                        .requestMatchers("/api/sprints/**").authenticated()
+                                                // Dashboard
+                                                .requestMatchers("/api/dashboard/**").authenticated()
 
-                        // Task management — all roles can READ; create/delete restricted via
-                        // @PreAuthorize
-                        .requestMatchers("/api/tasks/**").hasAnyAuthority(
-                                "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN", "ROLE_PROJECT_MANAGER",
-                                "ROLE_DEVELOPER", "ROLE_TESTER")
+                                                // Project management
+                                                .requestMatchers("/api/projects/**").hasAnyAuthority(
+                                                                "ROLE_SUPER_ADMIN",
+                                                                "ROLE_ORG_ADMIN",
+                                                                "ROLE_PROJECT_MANAGER",
+                                                                "ROLE_DEVELOPER",
+                                                                "ROLE_TESTER",
+                                                                "ROLE_CLIENT")
 
-                        // Project member management — all roles can READ (GET); writes via
-                        // @PreAuthorize
-                        .requestMatchers("/api/project-members/**").authenticated()
+                                                // Sprint management — all roles can READ; writes restricted via
+                                                // @PreAuthorize
+                                                .requestMatchers("/api/sprints/**").authenticated()
 
-                        // User admin list — super admin / org admin only
-                        .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
+                                                // Task management — all roles can READ; create/delete restricted via
+                                                // @PreAuthorize
+                                                .requestMatchers("/api/tasks/**").hasAnyAuthority(
+                                                                "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN",
+                                                                "ROLE_PROJECT_MANAGER",
+                                                                "ROLE_DEVELOPER", "ROLE_TESTER")
 
-                        .anyRequest().authenticated())
-                .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .build();
-    }
+                                                // Project member management — all roles can READ (GET); writes via
+                                                // @PreAuthorize
+                                                .requestMatchers("/api/project-members/**").authenticated()
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
+                                                // User admin list — super admin / org admin only
+                                                .requestMatchers("/api/users/**")
+                                                .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
 
-    @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
-    }
+                                                .anyRequest().authenticated())
+                                .authenticationProvider(authenticationProvider())
+                                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                                .build();
+        }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
-            throws Exception {
-        return config.getAuthenticationManager();
-    }
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOriginPatterns(List.of("*"));
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowCredentials(true);
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", config);
+                return source;
+        }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public AuthenticationProvider authenticationProvider() {
+                DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+                provider.setUserDetailsService(userDetailsService);
+                provider.setPasswordEncoder(passwordEncoder());
+                return provider;
+        }
+
+        @Bean
+        public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
+                        throws Exception {
+                return config.getAuthenticationManager();
+        }
+
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 }
