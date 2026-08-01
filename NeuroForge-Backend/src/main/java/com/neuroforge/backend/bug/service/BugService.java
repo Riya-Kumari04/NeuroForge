@@ -7,6 +7,8 @@ import com.neuroforge.backend.bug.dto.IncidentResponse;
 import com.neuroforge.backend.bug.dto.CreateBugRequest;
 import com.neuroforge.backend.dto.ApiResponse;
 
+import com.neuroforge.backend.bug.dto.SlaTimerResponse;
+
 import com.neuroforge.backend.bug.dto.UpdateBugStatusRequest;
 
 public interface BugService {
@@ -22,5 +24,7 @@ public interface BugService {
             UpdateBugStatusRequest request);
 
     ApiResponse<List<IncidentResponse>> getAllIncidents();
+
+    ApiResponse<SlaTimerResponse> getSlaTimer(Long incidentId);
 
 }

@@ -11,12 +11,15 @@ import com.neuroforge.backend.bug.entity.BugStatusHistory;
 import com.neuroforge.backend.bug.dto.UpdateBugStatusRequest;
 
 import lombok.RequiredArgsConstructor;
+import com.neuroforge.backend.bug.dto.SlaTimerResponse;
+
 import com.neuroforge.backend.bug.dto.IncidentResponse;
 
 import com.neuroforge.backend.bug.entity.Incident;
 import com.neuroforge.backend.bug.repository.IncidentRepository;
 import com.neuroforge.backend.bug.repository.IncidentRepository;
-
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -171,5 +174,47 @@ public class BugServiceImpl implements BugService {
         return ApiResponse.ok(
                 "Incidents fetched successfully",
                 incidents);
+    }
+
+    @Override
+    public ApiResponse<SlaTimerResponse> getSlaTimer(Long incidentId) {
+
+        Incident incident = incidentRepository.findById(incidentId)
+                .orElseThrow(() -> AppException.notFound("Incident not found"));
+
+        Duration duration;
+
+        if (incident.getResolvedAt() == null) {
+            duration = Duration.between(
+                    incident.getStartedAt(),
+                    LocalDateTime.now());
+        } else {
+            duration = Duration.between(
+                    incident.getStartedAt(),
+                    incident.getResolvedAt());
+        }
+
+        long seconds = duration.getSeconds();
+
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long remainingSeconds = seconds % 60;
+
+        String formatted = String.format(
+                "%02dh %02dm %02ds",
+                hours,
+                minutes,
+                remainingSeconds);
+
+        SlaTimerResponse response = SlaTimerResponse.builder()
+                .incidentId(incident.getId())
+                .status(incident.getStatus())
+                .elapsedSeconds(seconds)
+                .elapsedTime(formatted)
+                .build();
+
+        return ApiResponse.ok(
+                "SLA timer fetched successfully",
+                response);
     }
 }

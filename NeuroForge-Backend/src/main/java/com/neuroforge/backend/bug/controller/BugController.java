@@ -5,8 +5,11 @@ import com.neuroforge.backend.bug.dto.CreateBugRequest;
 import com.neuroforge.backend.bug.service.BugService;
 // import com.neuroforge.backend.controller.RestController;
 // import com.neuroforge.backend.controller.RestController;
+// import com.neuroforge.backend.controller.RestController;
 import com.neuroforge.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import com.neuroforge.backend.bug.dto.SlaTimerResponse;
+
 import com.neuroforge.backend.bug.dto.UpdateBugStatusRequest;
 
 import java.util.List;
@@ -48,6 +51,13 @@ public class BugController {
         return bugService.updateBugStatus(
                 bugId,
                 request);
+    }
+
+    @GetMapping("/incidents/{incidentId}/sla")
+    public ApiResponse<SlaTimerResponse> getSlaTimer(
+            @PathVariable Long incidentId) {
+
+        return bugService.getSlaTimer(incidentId);
     }
 
 }
