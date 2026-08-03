@@ -267,6 +267,28 @@ public class BugServiceImpl implements BugService {
         @Override
         public ApiResponse<DuplicateCheckResponse> checkDuplicate(CreateBugRequest request) {
 
+                List<Bug> openBugs = bugRepository.findByStatus("OPEN");
+
+                for (Bug bug : openBugs) {
+
+                        String existingTitle = bug.getTitle().toLowerCase();
+                        String newTitle = request.getTitle().toLowerCase();
+
+                        if (existingTitle.contains(newTitle)
+                                        || newTitle.contains(existingTitle)) {
+
+                                DuplicateCheckResponse response = DuplicateCheckResponse.builder()
+                                                .duplicate(true)
+                                                .duplicateBugId(bug.getId())
+                                                .message("Possible duplicate of BUG-" + bug.getId())
+                                                .build();
+
+                                return ApiResponse.ok(
+                                                "Duplicate check completed",
+                                                response);
+                        }
+                }
+
                 DuplicateCheckResponse response = DuplicateCheckResponse.builder()
                                 .duplicate(false)
                                 .duplicateBugId(null)

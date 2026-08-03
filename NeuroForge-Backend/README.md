@@ -76,3 +76,14 @@ The Module 1 schema (users, otps) is created automatically by Hibernate (`ddl-au
 | `/api/project-members/**` | ProjectMemberController | PROJECT_MANAGER+ |
 
 Swagger UI: `http://localhost:8081/swagger-ui.html`
+
+
+
+1. Create a Gemini API key from Google AI Studio.
+2. Add it to application.properties:
+
+gemini.api.key=YOUR_API_KEY
+
+or set the environment variable:
+
+GEMINI_API_KEY=YOUR_API_KEY

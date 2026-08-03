@@ -10,4 +10,6 @@ public interface BugRepository extends JpaRepository<Bug, Long> {
     List<Bug> findByStatus(String status);
 
     List<Bug> findBySeverity(String severity);
+
+    List<Bug> findByTitleContainingIgnoreCase(String title);
 }

@@ -63,6 +63,9 @@ public class SecurityConfig {
                                                 // Temporary: Allow Bug API without JWT for testing
                                                 .requestMatchers("/api/bugs/**").permitAll()
 
+                                                // Temporary: Allow AI API without JWT for testing
+                                                .requestMatchers("/api/ai/**").permitAll()
+
                                                 // Super admin only
                                                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_SUPER_ADMIN")
 
