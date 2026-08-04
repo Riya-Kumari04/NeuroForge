@@ -1,5 +1,6 @@
 package com.neuroforge.backend.bug.service;
 
+import com.neuroforge.backend.ai.service.GroqService;
 import com.neuroforge.backend.bug.dto.BugResponse;
 import com.neuroforge.backend.bug.dto.CreateBugRequest;
 import com.neuroforge.backend.bug.dto.DuplicateCheckResponse;
@@ -17,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import com.neuroforge.backend.bug.dto.SlaTimerResponse;
 
 import com.neuroforge.backend.bug.dto.IncidentResponse;
-
+import com.neuroforge.backend.ai.service.GroqService;
 import com.neuroforge.backend.bug.entity.Incident;
 import com.neuroforge.backend.bug.repository.IncidentRepository;
 import java.time.Duration;
@@ -34,6 +35,7 @@ public class BugServiceImpl implements BugService {
         private final BugStatusHistoryRepository historyRepository;
         private final IncidentRepository incidentRepository;
         private final BugWebSocketService bugWebSocketService;
+        private final GroqService groqService;
 
         @Override
         public ApiResponse<BugResponse> createBug(CreateBugRequest request) {
@@ -271,11 +273,11 @@ public class BugServiceImpl implements BugService {
 
                 for (Bug bug : openBugs) {
 
-                        String existingTitle = bug.getTitle().toLowerCase();
-                        String newTitle = request.getTitle().toLowerCase();
+                        boolean duplicate = groqService.isDuplicate(
+                                        bug.getTitle() + "\n" + bug.getDescription(),
+                                        request.getTitle() + "\n" + request.getDescription());
 
-                        if (existingTitle.contains(newTitle)
-                                        || newTitle.contains(existingTitle)) {
+                        if (duplicate) {
 
                                 DuplicateCheckResponse response = DuplicateCheckResponse.builder()
                                                 .duplicate(true)
