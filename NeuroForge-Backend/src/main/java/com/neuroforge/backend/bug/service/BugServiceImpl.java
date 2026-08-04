@@ -36,6 +36,7 @@ public class BugServiceImpl implements BugService {
         private final IncidentRepository incidentRepository;
         private final BugWebSocketService bugWebSocketService;
         private final GroqService groqService;
+        private final EmailService emailService;
 
         @Override
         public ApiResponse<BugResponse> createBug(CreateBugRequest request) {
@@ -67,6 +68,13 @@ public class BugServiceImpl implements BugService {
                                                         .severity(bug.getSeverity())
                                                         .status("ACTIVE")
                                                         .build());
+
+                        emailService.sendIncidentAlert(
+                                         "your_email@gmail.com",
+                                        // "riyabest04@gmail.com",
+
+                                        bug.getTitle(),
+                                        bug.getSeverity());
                 }
 
                 BugResponse response = BugResponse.builder()
