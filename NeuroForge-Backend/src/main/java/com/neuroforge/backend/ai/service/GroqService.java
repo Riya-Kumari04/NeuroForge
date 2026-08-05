@@ -5,11 +5,12 @@ import com.neuroforge.backend.ai.dto.ReleaseNotesResponse;
 
 public interface GroqService {
 
-    ReleaseNotesResponse generateReleaseNotes(
-            ReleaseNotesRequest request);
+        ReleaseNotesResponse generateReleaseNotes(
+                        ReleaseNotesRequest request);
 
-    boolean isDuplicate(
-            String existingBug,
-            String newBug);
+        boolean isDuplicate(
+                        String existingBug,
+                        String newBug);
 
+        String chat(String prompt);
 }

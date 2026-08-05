@@ -1,6 +1,5 @@
 package com.neuroforge.backend.bug.service;
 
-import com.neuroforge.backend.ai.service.GroqService;
 import com.neuroforge.backend.bug.dto.BugResponse;
 import com.neuroforge.backend.bug.dto.CreateBugRequest;
 import com.neuroforge.backend.bug.dto.DuplicateCheckResponse;
@@ -12,11 +11,8 @@ import com.neuroforge.backend.bug.repository.BugStatusHistoryRepository;
 import com.neuroforge.backend.bug.entity.BugStatusHistory;
 import com.neuroforge.backend.bug.dto.UpdateBugStatusRequest;
 import com.neuroforge.backend.bug.dto.IncidentAlert;
-// import com.neuroforge.backend.bug.dto.DuplicateCheckResponse;
-// import com.neuroforge.backend.bug.dto.CreateBugRequest;
 import lombok.RequiredArgsConstructor;
 import com.neuroforge.backend.bug.dto.SlaTimerResponse;
-
 import com.neuroforge.backend.bug.dto.IncidentResponse;
 import com.neuroforge.backend.ai.service.GroqService;
 import com.neuroforge.backend.bug.entity.Incident;
@@ -24,6 +20,7 @@ import com.neuroforge.backend.bug.repository.IncidentRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.neuroforge.backend.bug.entity.BugStatus;
 
 import org.springframework.stereotype.Service;
 
@@ -47,7 +44,7 @@ public class BugServiceImpl implements BugService {
                                 .severity(request.getSeverity())
                                 .environment(request.getEnvironment())
                                 .attachmentUrl(request.getAttachmentUrl())
-                                .status("OPEN")
+                                .status(BugStatus.OPEN)
                                 .build();
 
                 bug = bugRepository.save(bug);
@@ -70,8 +67,8 @@ public class BugServiceImpl implements BugService {
                                                         .build());
 
                         emailService.sendIncidentAlert(
-                                         "your_email@gmail.com",
-                                        // "riyabest04@gmail.com",
+                                        // "your_email@gmail.com",
+                                        "riyabest04@gmail.com",
 
                                         bug.getTitle(),
                                         bug.getSeverity());
@@ -82,7 +79,7 @@ public class BugServiceImpl implements BugService {
                                 .title(bug.getTitle())
                                 .description(bug.getDescription())
                                 .severity(bug.getSeverity())
-                                .status(bug.getStatus())
+                                .status(bug.getStatus().name())
                                 .environment(bug.getEnvironment())
                                 .attachmentUrl(bug.getAttachmentUrl())
                                 .createdAt(bug.getCreatedAt())
@@ -102,7 +99,7 @@ public class BugServiceImpl implements BugService {
                                                 .title(bug.getTitle())
                                                 .description(bug.getDescription())
                                                 .severity(bug.getSeverity())
-                                                .status(bug.getStatus())
+                                                .status(bug.getStatus().name())
                                                 .environment(bug.getEnvironment())
                                                 .attachmentUrl(bug.getAttachmentUrl())
                                                 .createdAt(bug.getCreatedAt())
@@ -126,7 +123,7 @@ public class BugServiceImpl implements BugService {
                                 .title(bug.getTitle())
                                 .description(bug.getDescription())
                                 .severity(bug.getSeverity())
-                                .status(bug.getStatus())
+                                .status(bug.getStatus().name())
                                 .environment(bug.getEnvironment())
                                 .attachmentUrl(bug.getAttachmentUrl())
                                 .createdAt(bug.getCreatedAt())
@@ -146,16 +143,26 @@ public class BugServiceImpl implements BugService {
                 Bug bug = bugRepository.findById(bugId)
                                 .orElseThrow(() -> AppException.notFound("Bug not found"));
 
-                String oldStatus = bug.getStatus();
+                if (request.getStatus().equalsIgnoreCase("VERIFIED")
+                                && !request.getRole().equalsIgnoreCase("QA")) {
 
-                bug.setStatus(request.getStatus());
+                        throw AppException.badRequest(
+                                        "Only QA can verify bugs.");
+                }
+
+                BugStatus oldStatus = bug.getStatus();
+
+                bug.setStatus(
+                                BugStatus.valueOf(
+                                                request.getStatus().toUpperCase()));
 
                 bug = bugRepository.save(bug);
 
                 BugStatusHistory history = BugStatusHistory.builder()
                                 .bug(bug)
-                                .oldStatus(oldStatus)
-                                .newStatus(request.getStatus())
+                                .oldStatus(oldStatus.name())
+                                .newStatus(
+                                                BugStatus.valueOf(request.getStatus().toUpperCase()).name())
                                 .changedBy("SYSTEM")
                                 .build();
 
@@ -166,7 +173,7 @@ public class BugServiceImpl implements BugService {
                                 .title(bug.getTitle())
                                 .description(bug.getDescription())
                                 .severity(bug.getSeverity())
-                                .status(bug.getStatus())
+                                .status(bug.getStatus().name())
                                 .environment(bug.getEnvironment())
                                 .attachmentUrl(bug.getAttachmentUrl())
                                 .createdAt(bug.getCreatedAt())
@@ -248,6 +255,9 @@ public class BugServiceImpl implements BugService {
 
                 incident.setStatus("RESOLVED");
                 incident.setResolvedAt(LocalDateTime.now());
+                Bug bug = incident.getBug();
+                bug.setStatus(BugStatus.FIXED); // or BugStatus.FIXED depending on your workflow
+                bugRepository.save(bug);
 
                 incident = incidentRepository.save(incident);
 
@@ -277,7 +287,7 @@ public class BugServiceImpl implements BugService {
         @Override
         public ApiResponse<DuplicateCheckResponse> checkDuplicate(CreateBugRequest request) {
 
-                List<Bug> openBugs = bugRepository.findByStatus("OPEN");
+                List<Bug> openBugs = bugRepository.findByStatus(BugStatus.OPEN);
 
                 for (Bug bug : openBugs) {
 

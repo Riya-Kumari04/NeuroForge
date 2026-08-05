@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 // import java.net.http.HttpHeaders;
+// import java.net.http.HttpHeaders;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,31 +41,61 @@ public class GroqServiceImpl implements GroqService {
         }
 
         @Override
-        public boolean isDuplicate(String existingBug, String newBug) {
+        public String chat(String prompt) {
+
+                String url = "https://api.groq.com/openai/v1/chat/completions";
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setBearerAuth(apiKey);
+                headers.setContentType(MediaType.APPLICATION_JSON);
+
+                Map<String, Object> body = new HashMap<>();
+                body.put("model", model);
+
+                body.put("messages", List.of(
+                                Map.of(
+                                                "role", "user",
+                                                "content", prompt)));
+
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+                ResponseEntity<Map> response = restTemplate.exchange(
+                                url,
+                                HttpMethod.POST,
+                                entity,
+                                Map.class);
+
+                List<?> choices = (List<?>) response.getBody().get("choices");
+
+                Map<?, ?> choice = (Map<?, ?>) choices.get(0);
+
+                Map<?, ?> message = (Map<?, ?>) choice.get("message");
+
+                return message.get("content").toString();
+        }
+
+        @Override
+        public boolean isDuplicate(
+                        String existingBug,
+                        String newBug) {
 
                 String prompt = """
-                                You are an AI assistant for bug tracking.
+                                You are a bug detection assistant.
 
-                                Compare the following two bug reports.
+                                Compare these two bug reports.
 
-                                Return ONLY one word:
-                                YES - if they describe the same underlying issue.
-                                NO - if they describe different issues.
-
-                                Do not provide any explanation.
-
-                                Existing Bug:
+                                Bug 1:
                                 %s
 
-                                New Bug:
+                                Bug 2:
                                 %s
+
+                                Reply ONLY with YES or NO.
                                 """.formatted(existingBug, newBug);
 
-                String result = callGroq(prompt);
+                String answer = chat(prompt);
 
-                System.out.println("Groq Response: " + result);
-
-                return result.trim().equalsIgnoreCase("YES");
+                return answer.trim().toUpperCase().startsWith("YES");
         }
 
         private String callGroq(String prompt) {

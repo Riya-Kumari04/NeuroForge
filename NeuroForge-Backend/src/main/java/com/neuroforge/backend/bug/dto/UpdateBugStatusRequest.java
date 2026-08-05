@@ -8,4 +8,6 @@ public class UpdateBugStatusRequest {
 
     private String status;
 
+    private String role;
+
 }

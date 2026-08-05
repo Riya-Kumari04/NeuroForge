@@ -2,7 +2,8 @@ package com.neuroforge.backend.bug.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import java.time.LocalDateTime;
 
 @Entity
@@ -28,8 +29,9 @@ public class Bug {
     private String severity;
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    private String status = "OPEN";
+    private BugStatus status = BugStatus.OPEN;
 
     @Column(nullable = false)
     private String environment;
