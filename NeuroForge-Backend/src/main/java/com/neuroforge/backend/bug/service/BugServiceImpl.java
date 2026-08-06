@@ -13,6 +13,9 @@ import com.neuroforge.backend.bug.entity.BugStatusHistory;
 import com.neuroforge.backend.bug.dto.UpdateBugStatusRequest;
 import com.neuroforge.backend.bug.dto.IncidentAlert;
 import lombok.RequiredArgsConstructor;
+import main.java.com.neuroforge.backend.bug.entity.DuplicateCheckLog;
+import main.java.com.neuroforge.backend.bug.repository.DuplicateCheckLogRepository;
+
 import com.neuroforge.backend.bug.dto.SlaTimerResponse;
 import com.neuroforge.backend.bug.dto.IncidentResponse;
 import com.neuroforge.backend.ai.service.GroqService;
@@ -35,6 +38,7 @@ public class BugServiceImpl implements BugService {
         private final BugWebSocketService bugWebSocketService;
         private final GroqService groqService;
         private final EmailService emailService;
+        private final DuplicateCheckLogRepository duplicateCheckLogRepository;
 
         @Override
         public ApiResponse<BugResponse> createBug(CreateBugRequest request) {
@@ -69,7 +73,6 @@ public class BugServiceImpl implements BugService {
 
                         emailService.sendIncidentAlert(
                                         "your_email@gmail.com",
-                                        
 
                                         bug.getTitle(),
                                         bug.getSeverity());
@@ -295,6 +298,16 @@ public class BugServiceImpl implements BugService {
                         boolean duplicate = groqService.isDuplicate(
                                         bug.getTitle() + "\n" + bug.getDescription(),
                                         request.getTitle() + "\n" + request.getDescription());
+                                        
+                        DuplicateCheckLog log = DuplicateCheckLog.builder()
+                                        .existingBugId(bug.getId())
+                                        .existingTitle(bug.getTitle())
+                                        .newTitle(request.getTitle())
+                                        .duplicate(duplicate)
+                                        .checkedAt(LocalDateTime.now())
+                                        .build();
+
+                        duplicateCheckLogRepository.save(log);
 
                         if (duplicate) {
 
