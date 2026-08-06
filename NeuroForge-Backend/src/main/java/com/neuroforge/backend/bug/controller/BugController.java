@@ -1,10 +1,11 @@
 package com.neuroforge.backend.bug.controller;
 
+import com.neuroforge.backend.bug.dto.BugBoardResponse;
 import com.neuroforge.backend.bug.dto.BugResponse;
 import com.neuroforge.backend.bug.dto.CreateBugRequest;
 import com.neuroforge.backend.bug.dto.DuplicateCheckResponse;
 import com.neuroforge.backend.bug.service.BugService;
-// import com.neuroforge.backend.controller.RestController;
+
 import com.neuroforge.backend.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import com.neuroforge.backend.bug.dto.IncidentResponse;
@@ -73,6 +74,11 @@ public class BugController {
             @RequestBody CreateBugRequest request) {
 
         return bugService.checkDuplicate(request);
+    }
+
+    @GetMapping("/board")
+    public ApiResponse<BugBoardResponse> getBugBoard() {
+        return bugService.getBugBoard();
     }
 
 }

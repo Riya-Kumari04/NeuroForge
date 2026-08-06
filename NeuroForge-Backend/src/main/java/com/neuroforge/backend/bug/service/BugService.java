@@ -1,7 +1,7 @@
 package com.neuroforge.backend.bug.service;
 
 import java.util.List;
-
+import com.neuroforge.backend.bug.dto.BugBoardResponse;
 import com.neuroforge.backend.bug.dto.BugResponse;
 import com.neuroforge.backend.bug.dto.IncidentResponse;
 import com.neuroforge.backend.bug.dto.CreateBugRequest;
@@ -31,6 +31,9 @@ public interface BugService {
 
 
         ApiResponse<DuplicateCheckResponse> checkDuplicate(
-                        CreateBugRequest request);
+                
+                CreateBugRequest request);
 
+
+        ApiResponse<BugBoardResponse> getBugBoard();
 }

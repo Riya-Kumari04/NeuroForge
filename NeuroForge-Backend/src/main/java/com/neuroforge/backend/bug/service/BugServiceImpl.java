@@ -1,5 +1,6 @@
 package com.neuroforge.backend.bug.service;
 
+import com.neuroforge.backend.bug.dto.BugBoardResponse;
 import com.neuroforge.backend.bug.dto.BugResponse;
 import com.neuroforge.backend.bug.dto.CreateBugRequest;
 import com.neuroforge.backend.bug.dto.DuplicateCheckResponse;
@@ -67,8 +68,8 @@ public class BugServiceImpl implements BugService {
                                                         .build());
 
                         emailService.sendIncidentAlert(
-                                        // "your_email@gmail.com",
-                                        "riyabest04@gmail.com",
+                                        "your_email@gmail.com",
+                                        
 
                                         bug.getTitle(),
                                         bug.getSeverity());
@@ -318,5 +319,39 @@ public class BugServiceImpl implements BugService {
                 return ApiResponse.ok(
                                 "Duplicate check completed",
                                 response);
+        }
+
+        @Override
+        public ApiResponse<BugBoardResponse> getBugBoard() {
+
+                BugBoardResponse board = BugBoardResponse.builder()
+                                .open(map(bugRepository.findByStatus(BugStatus.OPEN)))
+                                .triaged(map(bugRepository.findByStatus(BugStatus.TRIAGED)))
+                                .inProgress(map(bugRepository.findByStatus(BugStatus.IN_PROGRESS)))
+                                .fixed(map(bugRepository.findByStatus(BugStatus.FIXED)))
+                                .verified(map(bugRepository.findByStatus(BugStatus.VERIFIED)))
+                                .closed(map(bugRepository.findByStatus(BugStatus.CLOSED)))
+                                .build();
+
+                return ApiResponse.ok(
+                                "Bug board fetched successfully",
+                                board);
+        }
+
+        private List<BugResponse> map(List<Bug> bugs) {
+
+                return bugs.stream()
+                                .map(bug -> BugResponse.builder()
+                                                .id(bug.getId())
+                                                .title(bug.getTitle())
+                                                .description(bug.getDescription())
+                                                .severity(bug.getSeverity())
+                                                .status(bug.getStatus().name())
+                                                .environment(bug.getEnvironment())
+                                                .attachmentUrl(bug.getAttachmentUrl())
+                                                .createdAt(bug.getCreatedAt())
+                                                .updatedAt(bug.getUpdatedAt())
+                                                .build())
+                                .toList();
         }
 }
