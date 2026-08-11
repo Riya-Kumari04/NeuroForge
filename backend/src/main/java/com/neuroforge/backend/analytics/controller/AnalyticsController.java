@@ -7,17 +7,25 @@ import com.neuroforge.backend.analytics.dto.CycleTimeResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.DeploymentFrequencyResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
+import com.neuroforge.backend.analytics.dto.MetricsSnapshotResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
+import com.neuroforge.backend.analytics.dto.VelocityHistoryResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.analytics.service.AnalyticsService;
+import com.neuroforge.backend.analytics.service.MetricsSnapshotService;
+import com.neuroforge.backend.analytics.service.VelocityHistoryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,6 +34,8 @@ import java.util.UUID;
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
+    private final MetricsSnapshotService metricsSnapshotService;
+    private final VelocityHistoryService velocityHistoryService;
 
     @GetMapping("/dashboard")
     public ResponseEntity<AnalyticsDashboardResponse> getDashboard() {
@@ -81,5 +91,23 @@ public class AnalyticsController {
     @GetMapping("/change-failure-rate")
     public ResponseEntity<ChangeFailureRateResponse> getChangeFailureRate() {
         return ResponseEntity.ok(analyticsService.getChangeFailureRate());
+    }
+
+    @GetMapping("/snapshots/{date}")
+    public ResponseEntity<MetricsSnapshotResponse> getSnapshot(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(metricsSnapshotService.getSnapshot(date));
+    }
+
+    @GetMapping("/snapshots")
+    public ResponseEntity<List<MetricsSnapshotResponse>> getSnapshots(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(metricsSnapshotService.getSnapshots(startDate, endDate));
+    }
+
+    @GetMapping("/velocity-history")
+    public ResponseEntity<VelocityHistoryResponse> getVelocityHistory() {
+        return ResponseEntity.ok(velocityHistoryService.getVelocityHistory());
     }
 }
