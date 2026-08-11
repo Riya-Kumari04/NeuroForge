@@ -2,13 +2,19 @@ package com.neuroforge.backend.analytics.service;
 
 import com.neuroforge.backend.analytics.dto.BurndownPointResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
+import com.neuroforge.backend.analytics.dto.IssueTrendPointResponse;
+import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.VelocityPointResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
+import com.neuroforge.backend.enums.IssueSeverity;
 import com.neuroforge.backend.enums.SprintStatus;
 import com.neuroforge.backend.enums.TaskStatus;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
+import com.neuroforge.backend.mongodb.document.ReviewDocument;
+import com.neuroforge.backend.mongodb.document.ReviewIssue;
+import com.neuroforge.backend.mongodb.repository.ReviewDocumentRepository;
 import com.neuroforge.backend.repository.CodeReviewRepository;
 import com.neuroforge.backend.repository.SprintRepository;
 import com.neuroforge.backend.repository.TaskRepository;
@@ -44,6 +50,9 @@ class AnalyticsServiceImplTest {
 
     @Mock
     private CodeReviewRepository codeReviewRepository;
+
+    @Mock
+    private ReviewDocumentRepository reviewDocumentRepository;
 
     @InjectMocks
     private AnalyticsServiceImpl analyticsService;
@@ -257,5 +266,119 @@ class AnalyticsServiceImplTest {
         );
 
         assertEquals("No active sprint found.", exception.getMessage());
+    }
+
+    @Test
+    void getIssueTrend_groupsIssuesByDateAndSeverity() {
+        ReviewDocument doc1 = ReviewDocument.builder()
+                .reviewId(UUID.randomUUID())
+                .createdAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .issues(List.of(
+                        ReviewIssue.builder().severity(IssueSeverity.HIGH).build(),
+                        ReviewIssue.builder().severity(IssueSeverity.MEDIUM).build()
+                ))
+                .build();
+
+        ReviewDocument doc2 = ReviewDocument.builder()
+                .reviewId(UUID.randomUUID())
+                .createdAt(LocalDateTime.of(2026, 3, 1, 14, 0))
+                .issues(List.of(
+                        ReviewIssue.builder().severity(IssueSeverity.LOW).build()
+                ))
+                .build();
+
+        ReviewDocument doc3 = ReviewDocument.builder()
+                .reviewId(UUID.randomUUID())
+                .createdAt(LocalDateTime.of(2026, 3, 5, 9, 0))
+                .issues(List.of(
+                        ReviewIssue.builder().severity(IssueSeverity.INFO).build()
+                ))
+                .build();
+
+        when(reviewDocumentRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(doc1, doc2, doc3));
+
+        IssueTrendResponse response = analyticsService.getIssueTrend();
+
+        assertNotNull(response);
+        assertNotNull(response.getPoints());
+        assertEquals(2, response.getPoints().size());
+
+        IssueTrendPointResponse point1 = response.getPoints().get(0);
+        assertEquals(LocalDate.of(2026, 3, 1), point1.getDate());
+        assertEquals(3, point1.getTotalIssues());
+        assertEquals(1, point1.getHighIssues());
+        assertEquals(1, point1.getMediumIssues());
+        assertEquals(1, point1.getLowIssues());
+        assertEquals(0, point1.getInfoIssues());
+
+        IssueTrendPointResponse point2 = response.getPoints().get(1);
+        assertEquals(LocalDate.of(2026, 3, 5), point2.getDate());
+        assertEquals(1, point2.getTotalIssues());
+        assertEquals(0, point2.getHighIssues());
+        assertEquals(0, point2.getMediumIssues());
+        assertEquals(0, point2.getLowIssues());
+        assertEquals(1, point2.getInfoIssues());
+
+        verify(reviewDocumentRepository).findAllByOrderByCreatedAtAsc();
+    }
+
+    @Test
+    void getIssueTrend_returnsEmptyList_whenNoReviewDocumentsExist() {
+        when(reviewDocumentRepository.findAllByOrderByCreatedAtAsc()).thenReturn(Collections.emptyList());
+
+        IssueTrendResponse response = analyticsService.getIssueTrend();
+
+        assertNotNull(response);
+        assertNotNull(response.getPoints());
+        assertTrue(response.getPoints().isEmpty());
+    }
+
+    @Test
+    void getIssueTrend_skipsDocumentsWithNullCreatedAt() {
+        ReviewDocument doc1 = ReviewDocument.builder()
+                .reviewId(UUID.randomUUID())
+                .createdAt(null)
+                .issues(List.of(
+                        ReviewIssue.builder().severity(IssueSeverity.HIGH).build()
+                ))
+                .build();
+
+        ReviewDocument doc2 = ReviewDocument.builder()
+                .reviewId(UUID.randomUUID())
+                .createdAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .issues(List.of(
+                        ReviewIssue.builder().severity(IssueSeverity.LOW).build()
+                ))
+                .build();
+
+        when(reviewDocumentRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(doc1, doc2));
+
+        IssueTrendResponse response = analyticsService.getIssueTrend();
+
+        assertNotNull(response);
+        assertNotNull(response.getPoints());
+        assertEquals(1, response.getPoints().size());
+
+        IssueTrendPointResponse point = response.getPoints().get(0);
+        assertEquals(LocalDate.of(2026, 3, 1), point.getDate());
+        assertEquals(1, point.getTotalIssues());
+        assertEquals(1, point.getLowIssues());
+    }
+
+    @Test
+    void getIssueTrend_handlesNullIssuesList() {
+        ReviewDocument doc1 = ReviewDocument.builder()
+                .reviewId(UUID.randomUUID())
+                .createdAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .issues(null)
+                .build();
+
+        when(reviewDocumentRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(doc1));
+
+        IssueTrendResponse response = analyticsService.getIssueTrend();
+
+        assertNotNull(response);
+        assertNotNull(response.getPoints());
+        assertTrue(response.getPoints().isEmpty());
     }
 }

@@ -3,6 +3,7 @@ package com.neuroforge.backend.analytics.controller;
 import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
+import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
@@ -57,5 +58,10 @@ public class AnalyticsController {
     public ResponseEntity<BurndownResponse> getBurndown() {
         // TODO Implement burndown endpoint
         return ResponseEntity.ok(analyticsService.getBurndown());
+    }
+
+    @GetMapping("/issue-trend")
+    public ResponseEntity<IssueTrendResponse> getIssueTrend() {
+        return ResponseEntity.ok(analyticsService.getIssueTrend());
     }
 }

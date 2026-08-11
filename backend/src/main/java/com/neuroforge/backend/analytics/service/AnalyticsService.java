@@ -3,6 +3,7 @@ package com.neuroforge.backend.analytics.service;
 import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
+import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
@@ -22,4 +23,6 @@ public interface AnalyticsService {
     VelocityResponse getVelocity();
 
     BurndownResponse getBurndown();
+
+    IssueTrendResponse getIssueTrend();
 }

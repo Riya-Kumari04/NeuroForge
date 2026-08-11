@@ -4,15 +4,21 @@ import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
 import com.neuroforge.backend.analytics.dto.BurndownPointResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
+import com.neuroforge.backend.analytics.dto.IssueTrendPointResponse;
+import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
 import com.neuroforge.backend.analytics.dto.VelocityPointResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
+import com.neuroforge.backend.enums.IssueSeverity;
 import com.neuroforge.backend.enums.SprintStatus;
 import com.neuroforge.backend.enums.TaskStatus;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
+import com.neuroforge.backend.mongodb.document.ReviewDocument;
+import com.neuroforge.backend.mongodb.document.ReviewIssue;
+import com.neuroforge.backend.mongodb.repository.ReviewDocumentRepository;
 import com.neuroforge.backend.repository.CodeReviewRepository;
 import com.neuroforge.backend.repository.SprintRepository;
 import com.neuroforge.backend.repository.TaskRepository;
@@ -22,7 +28,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +44,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final SprintRepository sprintRepository;
     private final TaskStatusHistoryRepository taskStatusHistoryRepository;
     private final CodeReviewRepository codeReviewRepository;
+    private final ReviewDocumentRepository reviewDocumentRepository;
 
     @Override
     public AnalyticsDashboardResponse getDashboard() {
@@ -239,6 +250,62 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .startDate(startDate)
                 .endDate(endDate)
                 .totalStoryPoints(totalStoryPoints)
+                .points(points)
+                .build();
+    }
+
+    @Override
+    public IssueTrendResponse getIssueTrend() {
+        List<ReviewDocument> documents = reviewDocumentRepository.findAllByOrderByCreatedAtAsc();
+
+        if (documents.isEmpty()) {
+            return IssueTrendResponse.builder()
+                    .points(Collections.emptyList())
+                    .build();
+        }
+
+        Map<LocalDate, Map<IssueSeverity, Integer>> countsByDate = new TreeMap<>();
+
+        for (ReviewDocument doc : documents) {
+            if (doc.getCreatedAt() == null || doc.getIssues() == null || doc.getIssues().isEmpty()) {
+                continue;
+            }
+
+            LocalDate date = doc.getCreatedAt().toLocalDate();
+
+            for (ReviewIssue issue : doc.getIssues()) {
+                if (issue == null || issue.getSeverity() == null) {
+                    continue;
+                }
+
+                countsByDate.computeIfAbsent(date, d -> new EnumMap<>(IssueSeverity.class))
+                        .merge(issue.getSeverity(), 1, Integer::sum);
+            }
+        }
+
+        List<IssueTrendPointResponse> points = countsByDate.entrySet().stream()
+                .map(entry -> {
+                    LocalDate date = entry.getKey();
+                    Map<IssueSeverity, Integer> severityMap = entry.getValue();
+
+                    int high = severityMap.getOrDefault(IssueSeverity.HIGH, 0);
+                    int medium = severityMap.getOrDefault(IssueSeverity.MEDIUM, 0);
+                    int low = severityMap.getOrDefault(IssueSeverity.LOW, 0);
+                    int info = severityMap.getOrDefault(IssueSeverity.INFO, 0);
+                    int total = high + medium + low + info;
+
+                    return IssueTrendPointResponse.builder()
+                            .date(date)
+                            .totalIssues(total)
+                            .highIssues(high)
+                            .mediumIssues(medium)
+                            .lowIssues(low)
+                            .infoIssues(info)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return IssueTrendResponse.builder()
                 .points(points)
                 .build();
     }
