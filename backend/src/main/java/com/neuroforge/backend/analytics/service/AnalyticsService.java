@@ -2,6 +2,7 @@ package com.neuroforge.backend.analytics.service;
 
 import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
+import com.neuroforge.backend.analytics.dto.CycleTimeResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
@@ -25,4 +26,6 @@ public interface AnalyticsService {
     BurndownResponse getBurndown();
 
     IssueTrendResponse getIssueTrend();
+
+    CycleTimeResponse getCycleTime();
 }

@@ -2,12 +2,15 @@ package com.neuroforge.backend.analytics.service;
 
 import com.neuroforge.backend.analytics.dto.BurndownPointResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
+import com.neuroforge.backend.analytics.dto.CycleTimePointResponse;
+import com.neuroforge.backend.analytics.dto.CycleTimeResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendPointResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.VelocityPointResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
+import com.neuroforge.backend.entity.TaskStatusHistory;
 import com.neuroforge.backend.enums.IssueSeverity;
 import com.neuroforge.backend.enums.SprintStatus;
 import com.neuroforge.backend.enums.TaskStatus;
@@ -380,5 +383,242 @@ class AnalyticsServiceImplTest {
         assertNotNull(response);
         assertNotNull(response.getPoints());
         assertTrue(response.getPoints().isEmpty());
+    }
+
+    @Test
+    void getCycleTime_calculatesCycleTimeCorrectly() {
+        Task task1 = Task.builder()
+                .id(UUID.randomUUID())
+                .title("Task 1")
+                .status(TaskStatus.DONE)
+                .build();
+
+        TaskStatusHistory h1 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .build();
+
+        TaskStatusHistory h2 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.IN_PROGRESS)
+                .newStatus(TaskStatus.CODE_REVIEW)
+                .changedAt(LocalDateTime.of(2026, 3, 2, 10, 0))
+                .build();
+
+        TaskStatusHistory h3 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.CODE_REVIEW)
+                .newStatus(TaskStatus.DONE)
+                .changedAt(LocalDateTime.of(2026, 3, 3, 10, 0))
+                .build();
+
+        when(taskRepository.findByStatus(TaskStatus.DONE)).thenReturn(List.of(task1));
+        when(taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(task1.getId())).thenReturn(List.of(h1, h2, h3));
+
+        CycleTimeResponse response = analyticsService.getCycleTime();
+
+        assertNotNull(response);
+        assertEquals(1L, response.getCompletedTasks());
+        assertEquals(1L, response.getMeasuredTasks());
+        assertEquals(48.0, response.getAverageCycleTimeHours());
+        assertNotNull(response.getPoints());
+        assertEquals(1, response.getPoints().size());
+
+        CycleTimePointResponse point = response.getPoints().get(0);
+        assertEquals(task1.getId(), point.getTaskId());
+        assertEquals("Task 1", point.getTaskTitle());
+        assertEquals(LocalDateTime.of(2026, 3, 1, 10, 0), point.getStartedAt());
+        assertEquals(LocalDateTime.of(2026, 3, 3, 10, 0), point.getCompletedAt());
+        assertEquals(2880L, point.getCycleTimeMinutes());
+    }
+
+    @Test
+    void getCycleTime_calculatesAverageAcrossMeasuredTasks() {
+        Task task1 = Task.builder()
+                .id(UUID.randomUUID())
+                .title("Task 1")
+                .status(TaskStatus.DONE)
+                .build();
+
+        Task task2 = Task.builder()
+                .id(UUID.randomUUID())
+                .title("Task 2")
+                .status(TaskStatus.DONE)
+                .build();
+
+        // Task 1: 24 hours (1440 mins)
+        TaskStatusHistory h1_1 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .build();
+        TaskStatusHistory h1_2 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.IN_PROGRESS)
+                .newStatus(TaskStatus.DONE)
+                .changedAt(LocalDateTime.of(2026, 3, 2, 10, 0))
+                .build();
+
+        // Task 2: 48 hours (2880 mins)
+        TaskStatusHistory h2_1 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .build();
+        TaskStatusHistory h2_2 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.IN_PROGRESS)
+                .newStatus(TaskStatus.DONE)
+                .changedAt(LocalDateTime.of(2026, 3, 3, 10, 0))
+                .build();
+
+        when(taskRepository.findByStatus(TaskStatus.DONE)).thenReturn(List.of(task1, task2));
+        when(taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(task1.getId())).thenReturn(List.of(h1_1, h1_2));
+        when(taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(task2.getId())).thenReturn(List.of(h2_1, h2_2));
+
+        CycleTimeResponse response = analyticsService.getCycleTime();
+
+        assertNotNull(response);
+        assertEquals(2L, response.getCompletedTasks());
+        assertEquals(2L, response.getMeasuredTasks());
+        assertEquals(36.0, response.getAverageCycleTimeHours());
+        assertEquals(2, response.getPoints().size());
+    }
+
+    @Test
+    void getCycleTime_skipsCompletedTasksWithoutInProgressHistory() {
+        Task task1 = Task.builder()
+                .id(UUID.randomUUID())
+                .title("Task 1")
+                .status(TaskStatus.DONE)
+                .build();
+
+        TaskStatusHistory h1 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.DONE)
+                .changedAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .build();
+
+        when(taskRepository.findByStatus(TaskStatus.DONE)).thenReturn(List.of(task1));
+        when(taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(task1.getId())).thenReturn(List.of(h1));
+
+        CycleTimeResponse response = analyticsService.getCycleTime();
+
+        assertNotNull(response);
+        assertEquals(1L, response.getCompletedTasks());
+        assertEquals(0L, response.getMeasuredTasks());
+        assertEquals(0.0, response.getAverageCycleTimeHours());
+        assertNotNull(response.getPoints());
+        assertTrue(response.getPoints().isEmpty());
+    }
+
+    @Test
+    void getCycleTime_usesFirstInProgressTransition() {
+        Task task1 = Task.builder()
+                .id(UUID.randomUUID())
+                .title("Task 1")
+                .status(TaskStatus.DONE)
+                .build();
+
+        TaskStatusHistory h1 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .build();
+
+        TaskStatusHistory h2 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.IN_PROGRESS)
+                .newStatus(TaskStatus.CODE_REVIEW)
+                .changedAt(LocalDateTime.of(2026, 3, 2, 10, 0))
+                .build();
+
+        TaskStatusHistory h3 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.CODE_REVIEW)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedAt(LocalDateTime.of(2026, 3, 3, 10, 0))
+                .build();
+
+        TaskStatusHistory h4 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.IN_PROGRESS)
+                .newStatus(TaskStatus.DONE)
+                .changedAt(LocalDateTime.of(2026, 3, 4, 10, 0))
+                .build();
+
+        when(taskRepository.findByStatus(TaskStatus.DONE)).thenReturn(List.of(task1));
+        when(taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(task1.getId())).thenReturn(List.of(h1, h2, h3, h4));
+
+        CycleTimeResponse response = analyticsService.getCycleTime();
+
+        assertNotNull(response);
+        assertEquals(1L, response.getMeasuredTasks());
+
+        CycleTimePointResponse point = response.getPoints().get(0);
+        assertEquals(LocalDateTime.of(2026, 3, 1, 10, 0), point.getStartedAt());
+        assertEquals(LocalDateTime.of(2026, 3, 4, 10, 0), point.getCompletedAt());
+        assertEquals(4320L, point.getCycleTimeMinutes()); // 3 days = 72 hours = 4320 mins
+    }
+
+    @Test
+    void getCycleTime_returnsEmptyPointsWhenNoMeasuredTasks() {
+        when(taskRepository.findByStatus(TaskStatus.DONE)).thenReturn(Collections.emptyList());
+
+        CycleTimeResponse response = analyticsService.getCycleTime();
+
+        assertNotNull(response);
+        assertEquals(0L, response.getCompletedTasks());
+        assertEquals(0L, response.getMeasuredTasks());
+        assertEquals(0.0, response.getAverageCycleTimeHours());
+        assertNotNull(response.getPoints());
+        assertTrue(response.getPoints().isEmpty());
+    }
+
+    @Test
+    void getCycleTime_sortsPointsByCompletionTime() {
+        Task taskA = Task.builder()
+                .id(UUID.randomUUID())
+                .title("Task A")
+                .status(TaskStatus.DONE)
+                .build();
+
+        Task taskB = Task.builder()
+                .id(UUID.randomUUID())
+                .title("Task B")
+                .status(TaskStatus.DONE)
+                .build();
+
+        // Task A completes on March 4
+        TaskStatusHistory ha1 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .build();
+        TaskStatusHistory ha2 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.IN_PROGRESS)
+                .newStatus(TaskStatus.DONE)
+                .changedAt(LocalDateTime.of(2026, 3, 4, 10, 0))
+                .build();
+
+        // Task B completes on March 2
+        TaskStatusHistory hb1 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.TODO)
+                .newStatus(TaskStatus.IN_PROGRESS)
+                .changedAt(LocalDateTime.of(2026, 3, 1, 10, 0))
+                .build();
+        TaskStatusHistory hb2 = TaskStatusHistory.builder()
+                .previousStatus(TaskStatus.IN_PROGRESS)
+                .newStatus(TaskStatus.DONE)
+                .changedAt(LocalDateTime.of(2026, 3, 2, 10, 0))
+                .build();
+
+        when(taskRepository.findByStatus(TaskStatus.DONE)).thenReturn(List.of(taskA, taskB));
+        when(taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(taskA.getId())).thenReturn(List.of(ha1, ha2));
+        when(taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(taskB.getId())).thenReturn(List.of(hb1, hb2));
+
+        CycleTimeResponse response = analyticsService.getCycleTime();
+
+        assertNotNull(response);
+        assertEquals(2, response.getPoints().size());
+
+        // First point should be Task B (completes March 2)
+        assertEquals(taskB.getId(), response.getPoints().get(0).getTaskId());
+        // Second point should be Task A (completes March 4)
+        assertEquals(taskA.getId(), response.getPoints().get(1).getTaskId());
     }
 }

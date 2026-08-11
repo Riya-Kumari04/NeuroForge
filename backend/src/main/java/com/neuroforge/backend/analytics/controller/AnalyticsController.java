@@ -2,6 +2,7 @@ package com.neuroforge.backend.analytics.controller;
 
 import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
+import com.neuroforge.backend.analytics.dto.CycleTimeResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
@@ -63,5 +64,10 @@ public class AnalyticsController {
     @GetMapping("/issue-trend")
     public ResponseEntity<IssueTrendResponse> getIssueTrend() {
         return ResponseEntity.ok(analyticsService.getIssueTrend());
+    }
+
+    @GetMapping("/cycle-time")
+    public ResponseEntity<CycleTimeResponse> getCycleTime() {
+        return ResponseEntity.ok(analyticsService.getCycleTime());
     }
 }

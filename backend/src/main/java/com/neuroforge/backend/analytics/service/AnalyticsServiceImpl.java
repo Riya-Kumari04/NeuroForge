@@ -3,6 +3,8 @@ package com.neuroforge.backend.analytics.service;
 import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
 import com.neuroforge.backend.analytics.dto.BurndownPointResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
+import com.neuroforge.backend.analytics.dto.CycleTimePointResponse;
+import com.neuroforge.backend.analytics.dto.CycleTimeResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendPointResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
@@ -12,6 +14,7 @@ import com.neuroforge.backend.analytics.dto.VelocityPointResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
+import com.neuroforge.backend.entity.TaskStatusHistory;
 import com.neuroforge.backend.enums.IssueSeverity;
 import com.neuroforge.backend.enums.SprintStatus;
 import com.neuroforge.backend.enums.TaskStatus;
@@ -26,9 +29,12 @@ import com.neuroforge.backend.repository.TaskStatusHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -306,6 +312,78 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .collect(Collectors.toList());
 
         return IssueTrendResponse.builder()
+                .points(points)
+                .build();
+    }
+
+    @Override
+    public CycleTimeResponse getCycleTime() {
+        List<Task> doneTasks = taskRepository.findByStatus(TaskStatus.DONE);
+        long completedTasks = doneTasks.size();
+
+        List<CycleTimePointResponse> points = new ArrayList<>();
+
+        for (Task task : doneTasks) {
+            if (task.getId() == null) {
+                continue;
+            }
+
+            List<TaskStatusHistory> historyList = taskStatusHistoryRepository.findByTaskIdOrderByChangedAtAsc(task.getId());
+            if (historyList == null || historyList.isEmpty()) {
+                continue;
+            }
+
+            LocalDateTime startedAt = null;
+            LocalDateTime completedAt = null;
+
+            for (TaskStatusHistory history : historyList) {
+                if (history == null || history.getChangedAt() == null || history.getNewStatus() == null) {
+                    continue;
+                }
+
+                if (startedAt == null && history.getNewStatus() == TaskStatus.IN_PROGRESS) {
+                    startedAt = history.getChangedAt();
+                } else if (startedAt != null && history.getNewStatus() == TaskStatus.DONE) {
+                    if (!history.getChangedAt().isBefore(startedAt)) {
+                        completedAt = history.getChangedAt();
+                        break;
+                    }
+                }
+            }
+
+            if (startedAt != null && completedAt != null && !completedAt.isBefore(startedAt)) {
+                long cycleTimeMinutes = Duration.between(startedAt, completedAt).toMinutes();
+
+                points.add(CycleTimePointResponse.builder()
+                        .taskId(task.getId())
+                        .taskTitle(task.getTitle())
+                        .sprintId(task.getSprint() != null ? task.getSprint().getId() : null)
+                        .startedAt(startedAt)
+                        .completedAt(completedAt)
+                        .cycleTimeMinutes(cycleTimeMinutes)
+                        .build());
+            }
+        }
+
+        long measuredTasks = points.size();
+        double averageCycleTimeHours = 0.0;
+
+        if (measuredTasks > 0) {
+            double totalMinutes = points.stream()
+                    .mapToLong(CycleTimePointResponse::getCycleTimeMinutes)
+                    .sum();
+            double avgHours = (totalMinutes / (double) measuredTasks) / 60.0;
+            averageCycleTimeHours = Math.round(avgHours * 100.0) / 100.0;
+
+            points.sort(Comparator.comparing(CycleTimePointResponse::getCompletedAt));
+        } else {
+            points = Collections.emptyList();
+        }
+
+        return CycleTimeResponse.builder()
+                .averageCycleTimeHours(averageCycleTimeHours)
+                .completedTasks(completedTasks)
+                .measuredTasks(measuredTasks)
                 .points(points)
                 .build();
     }
