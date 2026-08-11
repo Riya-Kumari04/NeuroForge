@@ -9,11 +9,13 @@ import com.neuroforge.backend.analytics.dto.DeploymentFrequencyResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.MetricsSnapshotResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
+import com.neuroforge.backend.analytics.dto.SprintHealthSummaryResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
 import com.neuroforge.backend.analytics.dto.VelocityHistoryResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.analytics.service.AnalyticsService;
 import com.neuroforge.backend.analytics.service.MetricsSnapshotService;
+import com.neuroforge.backend.analytics.service.SprintHealthSummaryService;
 import com.neuroforge.backend.analytics.service.VelocityHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -36,6 +38,7 @@ public class AnalyticsController {
     private final AnalyticsService analyticsService;
     private final MetricsSnapshotService metricsSnapshotService;
     private final VelocityHistoryService velocityHistoryService;
+    private final SprintHealthSummaryService sprintHealthSummaryService;
 
     @GetMapping("/dashboard")
     public ResponseEntity<AnalyticsDashboardResponse> getDashboard() {
@@ -47,6 +50,11 @@ public class AnalyticsController {
     public ResponseEntity<SprintAnalyticsResponse> getSprintAnalytics(@PathVariable UUID sprintId) {
         // TODO Implement sprint analytics endpoint
         return ResponseEntity.ok(analyticsService.getSprintAnalytics(sprintId));
+    }
+
+    @GetMapping("/sprint/{sprintId}/health-summary")
+    public ResponseEntity<SprintHealthSummaryResponse> getSprintHealthSummary(@PathVariable UUID sprintId) {
+        return ResponseEntity.ok(sprintHealthSummaryService.generateSummary(sprintId));
     }
 
     @GetMapping("/developer/{userId}")
