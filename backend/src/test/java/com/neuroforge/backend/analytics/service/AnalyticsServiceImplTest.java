@@ -2,12 +2,18 @@ package com.neuroforge.backend.analytics.service;
 
 import com.neuroforge.backend.analytics.dto.BurndownPointResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
+import com.neuroforge.backend.analytics.dto.ChangeFailureRateResponse;
 import com.neuroforge.backend.analytics.dto.CycleTimePointResponse;
 import com.neuroforge.backend.analytics.dto.CycleTimeResponse;
+import com.neuroforge.backend.analytics.dto.DeploymentFrequencyResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendPointResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.VelocityPointResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
+import com.neuroforge.backend.analytics.entity.DeploymentRecord;
+import com.neuroforge.backend.analytics.enums.DeploymentEnvironment;
+import com.neuroforge.backend.analytics.enums.DeploymentStatus;
+import com.neuroforge.backend.analytics.repository.DeploymentRecordRepository;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
 import com.neuroforge.backend.entity.TaskStatusHistory;
@@ -37,6 +43,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +64,9 @@ class AnalyticsServiceImplTest {
 
     @Mock
     private ReviewDocumentRepository reviewDocumentRepository;
+
+    @Mock
+    private DeploymentRecordRepository deploymentRecordRepository;
 
     @InjectMocks
     private AnalyticsServiceImpl analyticsService;
@@ -552,7 +563,7 @@ class AnalyticsServiceImplTest {
         CycleTimePointResponse point = response.getPoints().get(0);
         assertEquals(LocalDateTime.of(2026, 3, 1, 10, 0), point.getStartedAt());
         assertEquals(LocalDateTime.of(2026, 3, 4, 10, 0), point.getCompletedAt());
-        assertEquals(4320L, point.getCycleTimeMinutes()); // 3 days = 72 hours = 4320 mins
+        assertEquals(4320L, point.getCycleTimeMinutes());
     }
 
     @Test
@@ -583,7 +594,6 @@ class AnalyticsServiceImplTest {
                 .status(TaskStatus.DONE)
                 .build();
 
-        // Task A completes on March 4
         TaskStatusHistory ha1 = TaskStatusHistory.builder()
                 .previousStatus(TaskStatus.TODO)
                 .newStatus(TaskStatus.IN_PROGRESS)
@@ -595,7 +605,6 @@ class AnalyticsServiceImplTest {
                 .changedAt(LocalDateTime.of(2026, 3, 4, 10, 0))
                 .build();
 
-        // Task B completes on March 2
         TaskStatusHistory hb1 = TaskStatusHistory.builder()
                 .previousStatus(TaskStatus.TODO)
                 .newStatus(TaskStatus.IN_PROGRESS)
@@ -616,9 +625,158 @@ class AnalyticsServiceImplTest {
         assertNotNull(response);
         assertEquals(2, response.getPoints().size());
 
-        // First point should be Task B (completes March 2)
         assertEquals(taskB.getId(), response.getPoints().get(0).getTaskId());
-        // Second point should be Task A (completes March 4)
         assertEquals(taskA.getId(), response.getPoints().get(1).getTaskId());
+    }
+
+    @Test
+    void getDeploymentFrequency_countsOnlySuccessfulProductionDeployments() {
+        when(deploymentRecordRepository.countByEnvironmentAndStatusAndDeployedAtBetween(
+                eq(DeploymentEnvironment.PRODUCTION),
+                eq(DeploymentStatus.SUCCESS),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(2L);
+
+        DeploymentFrequencyResponse response = analyticsService.getDeploymentFrequency();
+
+        assertNotNull(response);
+        assertEquals(2L, response.getTotalSuccessfulDeployments());
+        assertEquals(30, response.getPeriodDays());
+        assertEquals(0.07, response.getDeploymentsPerDay(), 0.001);
+        assertEquals(0.49, response.getDeploymentsPerWeek(), 0.001);
+        assertNotNull(response.getPeriodStart());
+        assertNotNull(response.getPeriodEnd());
+    }
+
+    @Test
+    void getDeploymentFrequency_returnsZeroWhenNoSuccessfulDeployments() {
+        when(deploymentRecordRepository.countByEnvironmentAndStatusAndDeployedAtBetween(
+                eq(DeploymentEnvironment.PRODUCTION),
+                eq(DeploymentStatus.SUCCESS),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(0L);
+
+        DeploymentFrequencyResponse response = analyticsService.getDeploymentFrequency();
+
+        assertNotNull(response);
+        assertEquals(0L, response.getTotalSuccessfulDeployments());
+        assertEquals(30, response.getPeriodDays());
+        assertEquals(0.0, response.getDeploymentsPerDay());
+        assertEquals(0.0, response.getDeploymentsPerWeek());
+    }
+
+    @Test
+    void getDeploymentFrequency_ignoresNonProductionDeployments() {
+        analyticsService.getDeploymentFrequency();
+
+        verify(deploymentRecordRepository).countByEnvironmentAndStatusAndDeployedAtBetween(
+                eq(DeploymentEnvironment.PRODUCTION),
+                eq(DeploymentStatus.SUCCESS),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        );
+    }
+
+    @Test
+    void getDeploymentFrequency_excludesDeploymentsOutsideThirtyDayWindow() {
+        LocalDate periodEnd = LocalDate.now();
+        LocalDate periodStart = periodEnd.minusDays(29);
+        LocalDateTime startTimestamp = periodStart.atStartOfDay();
+        LocalDateTime endTimestamp = periodEnd.plusDays(1).atStartOfDay();
+
+        analyticsService.getDeploymentFrequency();
+
+        verify(deploymentRecordRepository).countByEnvironmentAndStatusAndDeployedAtBetween(
+                eq(DeploymentEnvironment.PRODUCTION),
+                eq(DeploymentStatus.SUCCESS),
+                eq(startTimestamp),
+                eq(endTimestamp)
+        );
+    }
+
+    @Test
+    void getChangeFailureRate_calculatesCorrectly() {
+        DeploymentRecord d1 = DeploymentRecord.builder()
+                .environment(DeploymentEnvironment.PRODUCTION)
+                .status(DeploymentStatus.SUCCESS)
+                .deployedAt(LocalDateTime.now().minusDays(5))
+                .build();
+        DeploymentRecord d2 = DeploymentRecord.builder()
+                .environment(DeploymentEnvironment.PRODUCTION)
+                .status(DeploymentStatus.FAILED)
+                .deployedAt(LocalDateTime.now().minusDays(3))
+                .build();
+
+        when(deploymentRecordRepository.findByEnvironmentAndDeployedAtBetween(
+                eq(DeploymentEnvironment.PRODUCTION),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of(d1, d2));
+
+        ChangeFailureRateResponse response = analyticsService.getChangeFailureRate();
+
+        assertNotNull(response);
+        assertEquals(2L, response.getTotalProductionDeploymentAttempts());
+        assertEquals(1L, response.getFailedProductionDeployments());
+        assertEquals(50.0, response.getChangeFailureRate());
+        assertEquals(30, response.getPeriodDays());
+    }
+
+    @Test
+    void getChangeFailureRate_returnsZeroWhenNoProductionDeployments() {
+        when(deploymentRecordRepository.findByEnvironmentAndDeployedAtBetween(
+                eq(DeploymentEnvironment.PRODUCTION),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(Collections.emptyList());
+
+        ChangeFailureRateResponse response = analyticsService.getChangeFailureRate();
+
+        assertNotNull(response);
+        assertEquals(0L, response.getTotalProductionDeploymentAttempts());
+        assertEquals(0L, response.getFailedProductionDeployments());
+        assertEquals(0.0, response.getChangeFailureRate());
+    }
+
+    @Test
+    void getChangeFailureRate_ignoresNonProductionFailures() {
+        DeploymentRecord d1 = DeploymentRecord.builder()
+                .environment(DeploymentEnvironment.PRODUCTION)
+                .status(DeploymentStatus.SUCCESS)
+                .deployedAt(LocalDateTime.now().minusDays(5))
+                .build();
+        DeploymentRecord d2 = DeploymentRecord.builder()
+                .environment(DeploymentEnvironment.PRODUCTION)
+                .status(DeploymentStatus.SUCCESS)
+                .deployedAt(LocalDateTime.now().minusDays(3))
+                .build();
+
+        when(deploymentRecordRepository.findByEnvironmentAndDeployedAtBetween(
+                eq(DeploymentEnvironment.PRODUCTION),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of(d1, d2));
+
+        ChangeFailureRateResponse response = analyticsService.getChangeFailureRate();
+
+        assertNotNull(response);
+        assertEquals(2L, response.getTotalProductionDeploymentAttempts());
+        assertEquals(0L, response.getFailedProductionDeployments());
+        assertEquals(0.0, response.getChangeFailureRate());
+    }
+
+    @Test
+    void getChangeFailureRate_verifiesThirtyDayBoundary() {
+        LocalDate periodEnd = LocalDate.now();
+        LocalDate periodStart = periodEnd.minusDays(29);
+
+        ChangeFailureRateResponse response = analyticsService.getChangeFailureRate();
+
+        assertNotNull(response);
+        assertEquals(30, response.getPeriodDays());
+        assertEquals(periodStart, response.getPeriodStart());
+        assertEquals(periodEnd, response.getPeriodEnd());
     }
 }

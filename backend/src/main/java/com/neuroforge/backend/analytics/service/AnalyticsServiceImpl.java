@@ -3,15 +3,21 @@ package com.neuroforge.backend.analytics.service;
 import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
 import com.neuroforge.backend.analytics.dto.BurndownPointResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
+import com.neuroforge.backend.analytics.dto.ChangeFailureRateResponse;
 import com.neuroforge.backend.analytics.dto.CycleTimePointResponse;
 import com.neuroforge.backend.analytics.dto.CycleTimeResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
+import com.neuroforge.backend.analytics.dto.DeploymentFrequencyResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendPointResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
 import com.neuroforge.backend.analytics.dto.VelocityPointResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
+import com.neuroforge.backend.analytics.entity.DeploymentRecord;
+import com.neuroforge.backend.analytics.enums.DeploymentEnvironment;
+import com.neuroforge.backend.analytics.enums.DeploymentStatus;
+import com.neuroforge.backend.analytics.repository.DeploymentRecordRepository;
 import com.neuroforge.backend.entity.Sprint;
 import com.neuroforge.backend.entity.Task;
 import com.neuroforge.backend.entity.TaskStatusHistory;
@@ -51,6 +57,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final TaskStatusHistoryRepository taskStatusHistoryRepository;
     private final CodeReviewRepository codeReviewRepository;
     private final ReviewDocumentRepository reviewDocumentRepository;
+    private final DeploymentRecordRepository deploymentRecordRepository;
 
     @Override
     public AnalyticsDashboardResponse getDashboard() {
@@ -385,6 +392,74 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .completedTasks(completedTasks)
                 .measuredTasks(measuredTasks)
                 .points(points)
+                .build();
+    }
+
+    @Override
+    public DeploymentFrequencyResponse getDeploymentFrequency() {
+        LocalDate periodEnd = LocalDate.now();
+        LocalDate periodStart = periodEnd.minusDays(29);
+        LocalDateTime startTimestamp = periodStart.atStartOfDay();
+        LocalDateTime endTimestamp = periodEnd.plusDays(1).atStartOfDay();
+
+        long totalSuccessful = deploymentRecordRepository.countByEnvironmentAndStatusAndDeployedAtBetween(
+                DeploymentEnvironment.PRODUCTION,
+                DeploymentStatus.SUCCESS,
+                startTimestamp,
+                endTimestamp
+        );
+
+        double deploymentsPerDay = 0.0;
+        double deploymentsPerWeek = 0.0;
+
+        if (totalSuccessful > 0) {
+            double rawPerDay = totalSuccessful / 30.0;
+            deploymentsPerDay = Math.round(rawPerDay * 100.0) / 100.0;
+            double rawPerWeek = deploymentsPerDay * 7.0;
+            deploymentsPerWeek = Math.round(rawPerWeek * 100.0) / 100.0;
+        }
+
+        return DeploymentFrequencyResponse.builder()
+                .totalSuccessfulDeployments(totalSuccessful)
+                .periodDays(30)
+                .deploymentsPerDay(deploymentsPerDay)
+                .deploymentsPerWeek(deploymentsPerWeek)
+                .periodStart(periodStart)
+                .periodEnd(periodEnd)
+                .build();
+    }
+
+    @Override
+    public ChangeFailureRateResponse getChangeFailureRate() {
+        LocalDate periodEnd = LocalDate.now();
+        LocalDate periodStart = periodEnd.minusDays(29);
+        LocalDateTime startTimestamp = periodStart.atStartOfDay();
+        LocalDateTime endTimestamp = periodEnd.plusDays(1).atStartOfDay();
+
+        List<DeploymentRecord> prodDeployments = deploymentRecordRepository.findByEnvironmentAndDeployedAtBetween(
+                DeploymentEnvironment.PRODUCTION,
+                startTimestamp,
+                endTimestamp
+        );
+
+        long totalAttempts = prodDeployments.size();
+        long failedDeployments = prodDeployments.stream()
+                .filter(d -> d.getStatus() == DeploymentStatus.FAILED)
+                .count();
+
+        double failureRate = 0.0;
+        if (totalAttempts > 0) {
+            double rawRate = (failedDeployments * 100.0) / totalAttempts;
+            failureRate = Math.round(rawRate * 100.0) / 100.0;
+        }
+
+        return ChangeFailureRateResponse.builder()
+                .totalProductionDeploymentAttempts(totalAttempts)
+                .failedProductionDeployments(failedDeployments)
+                .changeFailureRate(failureRate)
+                .periodDays(30)
+                .periodStart(periodStart)
+                .periodEnd(periodEnd)
                 .build();
     }
 }

@@ -2,8 +2,10 @@ package com.neuroforge.backend.analytics.controller;
 
 import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
+import com.neuroforge.backend.analytics.dto.ChangeFailureRateResponse;
 import com.neuroforge.backend.analytics.dto.CycleTimeResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
+import com.neuroforge.backend.analytics.dto.DeploymentFrequencyResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
@@ -69,5 +71,15 @@ public class AnalyticsController {
     @GetMapping("/cycle-time")
     public ResponseEntity<CycleTimeResponse> getCycleTime() {
         return ResponseEntity.ok(analyticsService.getCycleTime());
+    }
+
+    @GetMapping("/deployment-frequency")
+    public ResponseEntity<DeploymentFrequencyResponse> getDeploymentFrequency() {
+        return ResponseEntity.ok(analyticsService.getDeploymentFrequency());
+    }
+
+    @GetMapping("/change-failure-rate")
+    public ResponseEntity<ChangeFailureRateResponse> getChangeFailureRate() {
+        return ResponseEntity.ok(analyticsService.getChangeFailureRate());
     }
 }
