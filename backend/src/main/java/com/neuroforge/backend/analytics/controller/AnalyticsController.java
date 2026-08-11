@@ -8,6 +8,7 @@ import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.DeploymentFrequencyResponse;
 import com.neuroforge.backend.analytics.dto.IssueTrendResponse;
 import com.neuroforge.backend.analytics.dto.MetricsSnapshotResponse;
+import com.neuroforge.backend.analytics.dto.PortfolioHealthResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.SprintHealthSummaryResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
@@ -15,6 +16,7 @@ import com.neuroforge.backend.analytics.dto.VelocityHistoryResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.analytics.service.AnalyticsService;
 import com.neuroforge.backend.analytics.service.MetricsSnapshotService;
+import com.neuroforge.backend.analytics.service.PortfolioHealthService;
 import com.neuroforge.backend.analytics.service.SprintHealthSummaryService;
 import com.neuroforge.backend.analytics.service.SprintReportPdfService;
 import com.neuroforge.backend.analytics.service.VelocityHistoryService;
@@ -45,11 +47,17 @@ public class AnalyticsController {
     private final VelocityHistoryService velocityHistoryService;
     private final SprintHealthSummaryService sprintHealthSummaryService;
     private final SprintReportPdfService sprintReportPdfService;
+    private final PortfolioHealthService portfolioHealthService;
 
     @GetMapping("/dashboard")
     public ResponseEntity<AnalyticsDashboardResponse> getDashboard() {
         // TODO Implement analytics dashboard endpoint
         return ResponseEntity.ok(analyticsService.getDashboard());
+    }
+
+    @GetMapping("/portfolio/organization/{orgId}")
+    public ResponseEntity<PortfolioHealthResponse> getPortfolioHealth(@PathVariable UUID orgId) {
+        return ResponseEntity.ok(portfolioHealthService.getPortfolioHealth(orgId));
     }
 
     @GetMapping("/sprint/{sprintId}")

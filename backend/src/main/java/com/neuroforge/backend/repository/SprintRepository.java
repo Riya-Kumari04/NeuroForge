@@ -18,5 +18,7 @@ public interface SprintRepository extends JpaRepository<Sprint, UUID> {
 
     boolean existsByStatus(SprintStatus status);
 
+    List<Sprint> findByTeamId(UUID teamId);
+
     List<Sprint> findAllByOrderByStartDateAsc();
 }
