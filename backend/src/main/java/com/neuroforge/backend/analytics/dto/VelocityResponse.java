@@ -6,12 +6,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class VelocityResponse {
-    // TODO: Define analytics fields
-    private String status;
+    private List<VelocityPointResponse> sprints;
 }
+

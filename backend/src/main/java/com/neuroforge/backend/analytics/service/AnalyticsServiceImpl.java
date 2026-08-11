@@ -5,8 +5,10 @@ import com.neuroforge.backend.analytics.dto.BurndownResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
+import com.neuroforge.backend.analytics.dto.VelocityPointResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.entity.Sprint;
+import com.neuroforge.backend.enums.SprintStatus;
 import com.neuroforge.backend.enums.TaskStatus;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
 import com.neuroforge.backend.repository.CodeReviewRepository;
@@ -16,7 +18,10 @@ import com.neuroforge.backend.repository.TaskStatusHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -140,8 +145,30 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public VelocityResponse getVelocity() {
-        // TODO Implement analytics calculation
-        return VelocityResponse.builder().build();
+        List<Sprint> sprints = sprintRepository.findAllByOrderByStartDateAsc();
+
+        List<VelocityPointResponse> points = sprints.stream()
+                .filter(sprint -> sprint.getStatus() == SprintStatus.COMPLETED)
+                .map(sprint -> {
+                    UUID sprintId = sprint.getId();
+                    String sprintName = sprint.getName();
+                    Integer completedStoryPoints = taskRepository.getStoryPointsBySprintAndStatus(sprintId, TaskStatus.DONE);
+                    long completedTasks = taskRepository.countBySprintIdAndStatus(sprintId, TaskStatus.DONE);
+                    LocalDate sprintEndDate = sprint.getActualEndDate() != null ? sprint.getActualEndDate() : sprint.getEndDate();
+
+                    return VelocityPointResponse.builder()
+                            .sprintId(sprintId)
+                            .sprintName(sprintName)
+                            .completedStoryPoints(completedStoryPoints != null ? completedStoryPoints : 0)
+                            .completedTasks(completedTasks)
+                            .sprintEndDate(sprintEndDate)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return VelocityResponse.builder()
+                .sprints(points)
+                .build();
     }
 
     @Override
