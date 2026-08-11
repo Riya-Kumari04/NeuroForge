@@ -16,9 +16,14 @@ import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.analytics.service.AnalyticsService;
 import com.neuroforge.backend.analytics.service.MetricsSnapshotService;
 import com.neuroforge.backend.analytics.service.SprintHealthSummaryService;
+import com.neuroforge.backend.analytics.service.SprintReportPdfService;
 import com.neuroforge.backend.analytics.service.VelocityHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +44,7 @@ public class AnalyticsController {
     private final MetricsSnapshotService metricsSnapshotService;
     private final VelocityHistoryService velocityHistoryService;
     private final SprintHealthSummaryService sprintHealthSummaryService;
+    private final SprintReportPdfService sprintReportPdfService;
 
     @GetMapping("/dashboard")
     public ResponseEntity<AnalyticsDashboardResponse> getDashboard() {
@@ -55,6 +61,17 @@ public class AnalyticsController {
     @GetMapping("/sprint/{sprintId}/health-summary")
     public ResponseEntity<SprintHealthSummaryResponse> getSprintHealthSummary(@PathVariable UUID sprintId) {
         return ResponseEntity.ok(sprintHealthSummaryService.generateSummary(sprintId));
+    }
+
+    @GetMapping(value = "/reports/sprint/{sprintId}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> getSprintReportPdf(@PathVariable UUID sprintId) {
+        byte[] pdfBytes = sprintReportPdfService.generateSprintReportPdf(sprintId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename("sprint-analytics-" + sprintId + ".pdf")
+                .build());
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
     }
 
     @GetMapping("/developer/{userId}")
