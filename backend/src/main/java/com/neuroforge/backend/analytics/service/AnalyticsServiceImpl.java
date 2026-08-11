@@ -1,6 +1,7 @@
 package com.neuroforge.backend.analytics.service;
 
 import com.neuroforge.backend.analytics.dto.AnalyticsDashboardResponse;
+import com.neuroforge.backend.analytics.dto.BurndownPointResponse;
 import com.neuroforge.backend.analytics.dto.BurndownResponse;
 import com.neuroforge.backend.analytics.dto.DeveloperAnalyticsResponse;
 import com.neuroforge.backend.analytics.dto.SprintAnalyticsResponse;
@@ -8,6 +9,7 @@ import com.neuroforge.backend.analytics.dto.TaskDistributionResponse;
 import com.neuroforge.backend.analytics.dto.VelocityPointResponse;
 import com.neuroforge.backend.analytics.dto.VelocityResponse;
 import com.neuroforge.backend.entity.Sprint;
+import com.neuroforge.backend.entity.Task;
 import com.neuroforge.backend.enums.SprintStatus;
 import com.neuroforge.backend.enums.TaskStatus;
 import com.neuroforge.backend.exception.ResourceNotFoundException;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -173,7 +176,70 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public BurndownResponse getBurndown() {
-        // TODO Implement analytics calculation
-        return BurndownResponse.builder().build();
+        Sprint sprint = sprintRepository.findFirstByStatus(SprintStatus.ACTIVE)
+                .orElseThrow(() -> new ResourceNotFoundException("No active sprint found."));
+
+        List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
+
+        LocalDate startDate = sprint.getStartDate();
+        if (startDate == null) {
+            startDate = sprint.getActualStartDate();
+        }
+        if (startDate == null && sprint.getCreatedAt() != null) {
+            startDate = sprint.getCreatedAt().toLocalDate();
+        }
+        if (startDate == null) {
+            startDate = LocalDate.now();
+        }
+
+        LocalDate endDate = sprint.getEndDate();
+        if (endDate == null) {
+            endDate = sprint.getActualEndDate();
+        }
+        if (endDate == null) {
+            endDate = startDate.plusDays(13);
+        }
+
+        if (endDate.isBefore(startDate)) {
+            endDate = startDate;
+        }
+
+        int totalStoryPoints = tasks.stream()
+                .mapToInt(task -> task.getStoryPoints() != null ? task.getStoryPoints() : 0)
+                .sum();
+
+        List<BurndownPointResponse> points = new ArrayList<>();
+        final LocalDate sprintStartDate = startDate;
+
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            final LocalDate currentDate = date;
+            int completedStoryPoints = tasks.stream()
+                    .filter(task -> task.getStatus() == TaskStatus.DONE)
+                    .filter(task -> {
+                        LocalDate completionDate = task.getUpdatedAt() != null
+                                ? task.getUpdatedAt().toLocalDate()
+                                : (task.getCreatedAt() != null ? task.getCreatedAt().toLocalDate() : sprintStartDate);
+                        return !completionDate.isAfter(currentDate);
+                    })
+                    .mapToInt(task -> task.getStoryPoints() != null ? task.getStoryPoints() : 0)
+                    .sum();
+
+            int remainingStoryPoints = Math.max(0, totalStoryPoints - completedStoryPoints);
+
+            points.add(BurndownPointResponse.builder()
+                    .date(currentDate)
+                    .remainingStoryPoints(remainingStoryPoints)
+                    .completedStoryPoints(completedStoryPoints)
+                    .build());
+        }
+
+        return BurndownResponse.builder()
+                .sprintId(sprint.getId())
+                .sprintName(sprint.getName())
+                .startDate(startDate)
+                .endDate(endDate)
+                .totalStoryPoints(totalStoryPoints)
+                .points(points)
+                .build();
     }
 }
