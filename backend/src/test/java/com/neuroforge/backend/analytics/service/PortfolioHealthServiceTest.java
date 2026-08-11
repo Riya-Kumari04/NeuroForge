@@ -19,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -171,6 +172,52 @@ class PortfolioHealthServiceTest {
     }
 
     @Test
+    void getPortfolioHealth_boundarySeventyPercentReturnsHealthy() {
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
+
+        UUID teamId = UUID.randomUUID();
+        Team team = Team.builder().id(teamId).name("Team Seventy").organization(organization).build();
+        when(teamRepository.findByOrganizationId(orgId)).thenReturn(List.of(team));
+
+        UUID sprintId = UUID.randomUUID();
+        Sprint sprint = Sprint.builder().id(sprintId).team(team).status(SprintStatus.ACTIVE).build();
+        when(sprintRepository.findByTeamId(teamId)).thenReturn(List.of(sprint));
+
+        when(taskRepository.countBySprintId(sprintId)).thenReturn(10L);
+        when(taskRepository.countBySprintIdAndStatus(sprintId, TaskStatus.DONE)).thenReturn(7L);
+
+        PortfolioHealthResponse response = portfolioHealthService.getPortfolioHealth(orgId);
+
+        assertNotNull(response);
+        assertEquals(1, response.getHealthyProjects());
+        assertEquals(70.0, response.getProjects().get(0).getCompletionPercentage());
+        assertEquals("HEALTHY", response.getProjects().get(0).getHealthStatus());
+    }
+
+    @Test
+    void getPortfolioHealth_boundaryFortyPercentReturnsAtRisk() {
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
+
+        UUID teamId = UUID.randomUUID();
+        Team team = Team.builder().id(teamId).name("Team Forty").organization(organization).build();
+        when(teamRepository.findByOrganizationId(orgId)).thenReturn(List.of(team));
+
+        UUID sprintId = UUID.randomUUID();
+        Sprint sprint = Sprint.builder().id(sprintId).team(team).status(SprintStatus.ACTIVE).build();
+        when(sprintRepository.findByTeamId(teamId)).thenReturn(List.of(sprint));
+
+        when(taskRepository.countBySprintId(sprintId)).thenReturn(10L);
+        when(taskRepository.countBySprintIdAndStatus(sprintId, TaskStatus.DONE)).thenReturn(4L);
+
+        PortfolioHealthResponse response = portfolioHealthService.getPortfolioHealth(orgId);
+
+        assertNotNull(response);
+        assertEquals(1, response.getAtRiskProjects());
+        assertEquals(40.0, response.getProjects().get(0).getCompletionPercentage());
+        assertEquals("AT_RISK", response.getProjects().get(0).getHealthStatus());
+    }
+
+    @Test
     void getPortfolioHealth_zeroTasksWithActiveSprintReturnsAtRisk() {
         when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
 
@@ -211,6 +258,80 @@ class PortfolioHealthServiceTest {
         assertEquals(1, response.getHealthyProjects());
         assertEquals(0, response.getAtRiskProjects());
         assertEquals("HEALTHY", response.getProjects().get(0).getHealthStatus());
+    }
+
+    @Test
+    void getPortfolioHealth_skipsNullTeamAndSetsTotalProjectsToGeneratedSummariesSize() {
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
+
+        UUID teamId = UUID.randomUUID();
+        Team team = Team.builder().id(teamId).name("Valid Team").organization(organization).build();
+
+        List<Team> teams = new ArrayList<>();
+        teams.add(null);
+        teams.add(team);
+        when(teamRepository.findByOrganizationId(orgId)).thenReturn(teams);
+
+        when(sprintRepository.findByTeamId(teamId)).thenReturn(Collections.emptyList());
+
+        PortfolioHealthResponse response = portfolioHealthService.getPortfolioHealth(orgId);
+
+        assertNotNull(response);
+        assertEquals(1, response.getTotalProjects());
+        assertEquals(1, response.getProjects().size());
+        assertEquals("Valid Team", response.getProjects().get(0).getProjectName());
+    }
+
+    @Test
+    void getPortfolioHealth_handlesNullSprintsListSafely() {
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
+
+        UUID teamId = UUID.randomUUID();
+        Team team = Team.builder().id(teamId).name("Team Null Sprints").organization(organization).build();
+        when(teamRepository.findByOrganizationId(orgId)).thenReturn(List.of(team));
+
+        when(sprintRepository.findByTeamId(teamId)).thenReturn(null);
+
+        PortfolioHealthResponse response = portfolioHealthService.getPortfolioHealth(orgId);
+
+        assertNotNull(response);
+        assertEquals(1, response.getTotalProjects());
+        assertEquals("HEALTHY", response.getProjects().get(0).getHealthStatus());
+    }
+
+    @Test
+    void getPortfolioHealth_handlesNullStoryPointsRepositoryResults() {
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
+
+        UUID teamId = UUID.randomUUID();
+        Team team = Team.builder().id(teamId).name("Team Null Points").organization(organization).build();
+        when(teamRepository.findByOrganizationId(orgId)).thenReturn(List.of(team));
+
+        UUID sprintId = UUID.randomUUID();
+        Sprint sprint = Sprint.builder().id(sprintId).team(team).status(SprintStatus.ACTIVE).build();
+        when(sprintRepository.findByTeamId(teamId)).thenReturn(List.of(sprint));
+
+        when(taskRepository.countBySprintId(sprintId)).thenReturn(10L);
+        when(taskRepository.countBySprintIdAndStatus(sprintId, TaskStatus.DONE)).thenReturn(8L);
+        when(taskRepository.getTotalStoryPointsBySprint(sprintId)).thenReturn(null);
+        when(taskRepository.getStoryPointsBySprintAndStatus(sprintId, TaskStatus.DONE)).thenReturn(null);
+
+        PortfolioHealthResponse response = portfolioHealthService.getPortfolioHealth(orgId);
+
+        assertNotNull(response);
+        assertEquals(1, response.getTotalProjects());
+        assertEquals(0, response.getTotalStoryPoints());
+        assertEquals(0, response.getCompletedStoryPoints());
+        assertEquals(10L, response.getTotalTasks());
+        assertEquals(8L, response.getCompletedTasks());
+
+        ProjectHealthSummary project = response.getProjects().get(0);
+        assertEquals(0, project.getTotalStoryPoints());
+        assertEquals(0, project.getCompletedStoryPoints());
+        assertEquals(10L, project.getTotalTasks());
+        assertEquals(8L, project.getCompletedTasks());
+        assertEquals(80.0, project.getCompletionPercentage());
+        assertEquals("HEALTHY", project.getHealthStatus());
     }
 
     @Test

@@ -42,7 +42,16 @@ public class PortfolioHealthServiceImpl implements PortfolioHealthService {
 
         List<Team> teams = teamRepository.findByOrganizationId(organizationId);
 
-        if (teams == null || teams.isEmpty()) {
+        List<Team> validTeams = new ArrayList<>();
+        if (teams != null) {
+            for (Team team : teams) {
+                if (team != null && team.getId() != null) {
+                    validTeams.add(team);
+                }
+            }
+        }
+
+        if (validTeams.isEmpty()) {
             return PortfolioHealthResponse.builder()
                     .organizationId(organizationId)
                     .organizationName(organization.getName())
@@ -59,8 +68,7 @@ public class PortfolioHealthServiceImpl implements PortfolioHealthService {
                     .build();
         }
 
-        List<Team> sortedTeams = new ArrayList<>(teams);
-        sortedTeams.sort(Comparator.comparing(Team::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
+        validTeams.sort(Comparator.comparing(t -> t.getName() == null ? "" : t.getName(), String::compareToIgnoreCase));
 
         int healthyProjects = 0;
         int atRiskProjects = 0;
@@ -73,7 +81,7 @@ public class PortfolioHealthServiceImpl implements PortfolioHealthService {
 
         List<ProjectHealthSummary> projectSummaries = new ArrayList<>();
 
-        for (Team team : sortedTeams) {
+        for (Team team : validTeams) {
             if (team == null || team.getId() == null) {
                 continue;
             }
