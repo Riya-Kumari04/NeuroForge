@@ -127,11 +127,11 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
   --border: 223 27% 14%;
   --input: 223 27% 14%;
   --ring: 217 91% 60%;
-  
+
   --card: 223 27% 9%;
   --card-foreground: 0 0% 95%;
   --card-border: 223 27% 14%;
-  
+
   --sidebar: 222 47% 4%;
   --sidebar-foreground: 0 0% 95%;
   --sidebar-border: 223 27% 14%;
@@ -140,23 +140,23 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
   --sidebar-accent: 223 27% 12%;
   --sidebar-accent-foreground: 0 0% 95%;
   --sidebar-ring: 217 91% 60%;
-  
+
   --popover: 223 27% 9%;
   --popover-foreground: 0 0% 95%;
   --popover-border: 223 27% 14%;
-  
+
   --primary: 217 91% 60%;
   --primary-foreground: 0 0% 100%;
-  
+
   --secondary: 223 27% 12%;
   --secondary-foreground: 0 0% 95%;
-  
+
   --muted: 223 27% 12%;
   --muted-foreground: 215 20% 65%;
-  
+
   --accent: 223 27% 12%;
   --accent-foreground: 0 0% 95%;
-  
+
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 }

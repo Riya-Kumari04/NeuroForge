@@ -10,6 +10,8 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
+    // Always use dark theme
+    document.documentElement.classList.remove('light');
     document.documentElement.classList.add('dark');
   }, []);
 

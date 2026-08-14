@@ -8,6 +8,8 @@ import ForgotPasswordPage     from '@/pages/ForgotPasswordPage';
 import ResetPasswordPage      from '@/pages/ResetPasswordPage';
 import NotFound               from '@/pages/not-found';
 import InvitationPage         from '@/pages/InvitationPage';
+import OAuthCallbackPage      from '@/pages/OAuthCallbackPage';
+import PendingApprovalPage    from '@/pages/PendingApprovalPage';
 import ProtectedRoute         from '@/components/common/ProtectedRoute';
 
 // Role Dashboards
@@ -36,6 +38,15 @@ import CreateProjectPage from '@/pages/projects/CreateProjectPage';
 import EditProjectPage   from '@/pages/projects/EditProjectPage';
 import PortfolioDashboard from '@/pages/projects/PortfolioDashboard';
 
+// Sprint pages (Module 5)
+import SprintDashboardPage from '@/pages/sprints/SprintDashboardPage';
+
+// Module 4: AI Specification Generator
+import AIGeneratorPage from '@/pages/specifications/AIGeneratorPage';
+
+// Module 7: Repository Integration
+import RepositoryIntegrationPage from '@/pages/dashboards/RepositoryIntegrationPage';
+
 import { UiRoleSlug } from '@/lib/roleUtils';
 
 const guard = (Component: React.ComponentType<any>, role: UiRoleSlug) =>
@@ -63,6 +74,8 @@ export default function AppRoutes() {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password"  component={ResetPasswordPage} />
       <Route path="/invitation"      component={InvitationPage} />
+      <Route path="/oauth2/success"   component={OAuthCallbackPage} />
+      <Route path="/pending-approval" component={PendingApprovalPage} />
 
       {/* ── Super Admin ─────────────────────────────────────────────────────── */}
       <Route path="/super-admin">{guard(SuperAdminDashboard, 'super-admin')}</Route>
@@ -82,6 +95,10 @@ export default function AppRoutes() {
       <Route path="/org-admin/projects/:id/edit">{guard(EditProjectPage, 'org-admin')}</Route>
       <Route path="/org-admin/projects/:id">{guard(ProjectDetailPage, 'org-admin')}</Route>
       <Route path="/org-admin/projects">{guard(ProjectListPage, 'org-admin')}</Route>
+      {/* Module 5 - Sprint Dashboard */}
+      <Route path="/org-admin/projects/:id/sprints/:sprintId/dashboard">{guard(SprintDashboardPage, 'org-admin')}</Route>
+      {/* Module 4 - AI Specification Generator */}
+      <Route path="/org-admin/specifications/generate">{guard(AIGeneratorPage, 'org-admin')}</Route>
       {sharedRoutes('org-admin')}
       <Route path="/org-admin/:rest*">{guard(OrgAdminDashboard, 'org-admin')}</Route>
 
@@ -92,6 +109,12 @@ export default function AppRoutes() {
       <Route path="/project-manager/projects/:id/edit">{guard(EditProjectPage, 'project-manager')}</Route>
       <Route path="/project-manager/projects/:id">{guard(ProjectDetailPage, 'project-manager')}</Route>
       <Route path="/project-manager/projects">{guard(ProjectListPage, 'project-manager')}</Route>
+      {/* Module 5 - Sprint Dashboard */}
+      <Route path="/project-manager/projects/:id/sprints/:sprintId/dashboard">{guard(SprintDashboardPage, 'project-manager')}</Route>
+      {/* Module 4 - AI Specification Generator */}
+      <Route path="/project-manager/specifications/generate">{guard(AIGeneratorPage, 'project-manager')}</Route>
+      {/* Module 7 - Repository Integration */}
+      <Route path="/project-manager/projects/:id/repositories">{guard(RepositoryIntegrationPage, 'project-manager')}</Route>
       {sharedRoutes('project-manager')}
       <Route path="/project-manager/:rest*">{guard(ProjectManagerDashboard, 'project-manager')}</Route>
 
@@ -99,20 +122,26 @@ export default function AppRoutes() {
       <Route path="/developer">{guard(DeveloperDashboard, 'developer')}</Route>
       <Route path="/developer/projects/:id">{guard(ProjectDetailPage, 'developer')}</Route>
       <Route path="/developer/projects">{guard(ProjectListPage, 'developer')}</Route>
+      {/* Module 5 - Sprint Dashboard */}
+      <Route path="/developer/projects/:id/sprints/:sprintId/dashboard">{guard(SprintDashboardPage, 'developer')}</Route>
       {sharedRoutes('developer')}
       <Route path="/developer/:rest*">{guard(DeveloperDashboard, 'developer')}</Route>
 
-      {/* ── Tester ──────────────────────────────────────────────────────────── */}
-      <Route path="/tester">{guard(QADashboard, 'tester')}</Route>
-      <Route path="/tester/projects/:id">{guard(ProjectDetailPage, 'tester')}</Route>
-      <Route path="/tester/projects">{guard(ProjectListPage, 'tester')}</Route>
-      {sharedRoutes('tester')}
-      <Route path="/tester/:rest*">{guard(QADashboard, 'tester')}</Route>
+      {/* ── QA ──────────────────────────────────────────────────────────────── */}
+      <Route path="/qa">{guard(QADashboard, 'qa')}</Route>
+      <Route path="/qa/projects/:id">{guard(ProjectDetailPage, 'qa')}</Route>
+      <Route path="/qa/projects">{guard(ProjectListPage, 'qa')}</Route>
+      {/* Module 5 - Sprint Dashboard */}
+      <Route path="/qa/projects/:id/sprints/:sprintId/dashboard">{guard(SprintDashboardPage, 'qa')}</Route>
+      {sharedRoutes('qa')}
+      <Route path="/qa/:rest*">{guard(QADashboard, 'qa')}</Route>
 
       {/* ── Client ──────────────────────────────────────────────────────────── */}
       <Route path="/client">{guard(ClientDashboard, 'client')}</Route>
       <Route path="/client/projects/:id">{guard(ProjectDetailPage, 'client')}</Route>
       <Route path="/client/projects">{guard(ProjectListPage, 'client')}</Route>
+      {/* Module 5 - Sprint Dashboard */}
+      <Route path="/client/projects/:id/sprints/:sprintId/dashboard">{guard(SprintDashboardPage, 'client')}</Route>
       {sharedRoutes('client')}
       <Route path="/client/:rest*">{guard(ClientDashboard, 'client')}</Route>
 

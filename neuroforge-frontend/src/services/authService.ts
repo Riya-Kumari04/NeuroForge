@@ -5,6 +5,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;      // e.g. "ROLE_DEVELOPER" from backend JWT
+  approvalStatus?: string; // e.g. "APPROVED", "PENDING", "REJECTED"
 }
 
 export interface TokenPair {

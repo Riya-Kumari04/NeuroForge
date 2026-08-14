@@ -2,7 +2,7 @@ import api from './api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type OrgRole = 'SUPER_ADMIN' | 'ORG_ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'TESTER' | 'CLIENT';
+export type OrgRole = 'SUPER_ADMIN' | 'ORG_ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'QA' | 'CLIENT';
 export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 
 export interface Organization {

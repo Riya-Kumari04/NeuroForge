@@ -22,6 +22,8 @@ export interface Sprint {
   status: string;
   startDate?: string;
   endDate?: string;
+  actualStartDate?: string;
+  actualEndDate?: string;
   projectId?: number;
 }
 
@@ -31,9 +33,16 @@ export interface Task {
   description?: string;
   priority: string;
   status: string;
+  storyPoints?: number;
+  labels?: string;
   assignedToId?: number;
   projectId?: number;
   sprintId?: number;
+  // Module 4: Specification Traceability
+  specificationId?: string;
+  specificationVersionId?: string;
+  specificationTitle?: string;
+  specificationVersionNumber?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -104,9 +113,14 @@ export interface CreateTaskRequest {
   description?: string;
   priority?: string;
   status?: string;
+  storyPoints?: number;
+  labels?: string;
   assignedToId?: number;
   projectId: number;
   sprintId?: number;
+  // Module 4: Specification Traceability
+  specificationId?: string;
+  specificationVersionId?: string;
 }
 
 export interface UpdateTaskRequest {
@@ -114,13 +128,94 @@ export interface UpdateTaskRequest {
   description?: string;
   priority?: string;
   status?: string;
+  storyPoints?: number;
+  labels?: string;
   assignedToId?: number;
   sprintId?: number;
+  // Module 4: Specification Traceability
+  specificationId?: string;
+  specificationVersionId?: string;
 }
 
 export interface AssignProjectMemberRequest {
   projectId: number;
   teamMemberId: number;
+}
+
+// Module 5: Task Status History
+export interface TaskStatusHistory {
+  id: number;
+  taskId: number;
+  previousStatus: string;
+  newStatus: string;
+  changedBy?: string;
+  changedAt: string;
+}
+
+export interface UpdateTaskStatusRequest {
+  status: string;
+}
+
+// Module 5: Sprint Analytics
+export interface SprintSummary {
+  id: number;
+  sprintName: string;
+  status: string;
+  goal?: string;
+  startDate?: string;
+  endDate?: string;
+  actualStartDate?: string;
+  actualEndDate?: string;
+  totalTasks: number;
+  completedTasks: number;
+  remainingTasks: number;
+  completionPercentage: number;
+  totalStoryPoints: number;
+  completedStoryPoints: number;
+  remainingStoryPoints: number;
+}
+
+export interface SprintStatistics {
+  todoTasks: number;
+  inProgressTasks: number;
+  testingTasks: number;
+  codeReviewTasks: number;
+  doneTasks: number;
+  highPriorityTasks: number;
+  criticalPriorityTasks: number;
+  averageStoryPoints: number;
+  completionPercentage: number;
+}
+
+export interface SprintProgress {
+  sprintId: number;
+  sprintName: string;
+  totalTasks: number;
+  completedTasks: number;
+  remainingTasks: number;
+  totalStoryPoints: number;
+  completedStoryPoints: number;
+  remainingStoryPoints: number;
+  completionPercentage: number;
+  currentSprintStatus: string;
+}
+
+export interface BurndownPoint {
+  date: string;
+  remainingStoryPoints: number;
+}
+
+export interface SprintVelocity {
+  completedStoryPoints: number;
+  completedTasks: number;
+  averageStoryPointsPerTask: number;
+  completionPercentage: number;
+}
+
+export interface TaskDistribution {
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+  byAssignee: Record<string, number>;
 }
 
 // ─── Date helper ─────────────────────────────────────────────────────────────
@@ -156,6 +251,16 @@ export const projectService = {
   getSprintById: (id: number) => api.get<any>(`/sprints/${id}`),
   updateSprint: (id: number, data: UpdateSprintRequest) => api.put<any>(`/sprints/${id}`, toIsoSprint(data)),
   deleteSprint: (id: number) => api.delete(`/sprints/${id}`),
+  // Module 5: Sprint lifecycle
+  startSprint: (id: number) => api.post<any>(`/sprints/${id}/start`),
+  completeSprint: (id: number) => api.post<any>(`/sprints/${id}/complete`),
+  // Module 5: Sprint analytics
+  getSprintSummary: (id: number) => api.get<any>(`/sprints/${id}/summary`),
+  getSprintStatistics: (id: number) => api.get<any>(`/sprints/${id}/statistics`),
+  getSprintProgress: (id: number) => api.get<any>(`/sprints/${id}/progress`),
+  getSprintBurndown: (id: number) => api.get<any>(`/sprints/${id}/burndown`),
+  getSprintVelocity: (id: number) => api.get<any>(`/sprints/${id}/velocity`),
+  getTaskDistribution: (id: number) => api.get<any>(`/sprints/${id}/distribution`),
 
   // ── Tasks ───────────────────────────────────────────────────────────────
   createTask: (data: CreateTaskRequest) => api.post<any>('/tasks', data),
@@ -164,6 +269,9 @@ export const projectService = {
   getTaskById: (id: number) => api.get<any>(`/tasks/${id}`),
   updateTask: (id: number, data: UpdateTaskRequest) => api.put<any>(`/tasks/${id}`, data),
   deleteTask: (id: number) => api.delete(`/tasks/${id}`),
+  // Module 5: Task status update with history
+  updateTaskStatus: (id: number, data: UpdateTaskStatusRequest) => api.put<any>(`/tasks/${id}/status`, data),
+  getTaskHistory: (id: number) => api.get<any>(`/tasks/${id}/history`),
 
   // ── Project Members ──────────────────────────────────────────────────────
   assignMember: (data: AssignProjectMemberRequest) => api.post<any>('/project-members', data),

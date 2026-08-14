@@ -11,6 +11,8 @@ import {
   User,
   SlidersHorizontal,
   LogOut,
+  ListTodo,
+  KanbanSquare,
 } from 'lucide-react';
 
 interface NavItem {
@@ -65,13 +67,13 @@ export default function Sidebar() {
           { label: 'Preferences', icon: SlidersHorizontal,  href: '/developer/preferences' },
         ];
 
-      case 'tester':
+      case 'qa':
         return [
-          { label: 'Dashboard',   icon: LayoutDashboard,   href: '/tester' },
-          { label: 'Projects',    icon: FolderKanban,       href: '/tester/projects' },
-          { label: 'Settings',    icon: Settings,           href: '/tester/settings' },
-          { label: 'Profile',     icon: User,               href: '/tester/profile' },
-          { label: 'Preferences', icon: SlidersHorizontal,  href: '/tester/preferences' },
+          { label: 'Dashboard',   icon: LayoutDashboard,   href: '/qa' },
+          { label: 'Projects',    icon: FolderKanban,       href: '/qa/projects' },
+          { label: 'Settings',    icon: Settings,           href: '/qa/settings' },
+          { label: 'Profile',     icon: User,               href: '/qa/profile' },
+          { label: 'Preferences', icon: SlidersHorizontal,  href: '/qa/preferences' },
         ];
 
       case 'client':

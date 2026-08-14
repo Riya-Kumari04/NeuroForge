@@ -11,25 +11,43 @@ const roleColors: Record<string, string> = {
   ORG_ADMIN:       'bg-blue-500/10   text-blue-400   border-blue-500/20',
   PROJECT_MANAGER: 'bg-amber-500/10  text-amber-400  border-amber-500/20',
   DEVELOPER:       'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  TESTER:          'bg-rose-500/10   text-rose-400   border-rose-500/20',
+  QA:              'bg-rose-500/10   text-rose-400   border-rose-500/20',
   CLIENT:          'bg-slate-500/10  text-slate-400  border-slate-500/20',
 };
 
 export default function ProjectTeamTab({ project }: Props) {
   const [search, setSearch] = useState('');
 
-  const { data, isLoading } = useQuery({
+  console.log('[ProjectTeamTab] Project data:', project);
+  console.log('[ProjectTeamTab] organizationId:', project.organizationId);
+  console.log('[ProjectTeamTab] organizationName:', project.organizationName);
+
+  const { data, isLoading, error } = useQuery({
     queryKey: ['org-members', project.organizationId],
     queryFn: () => organizationService.getMembers(project.organizationId!).then(r => r.data),
     enabled: !!project.organizationId,
   });
   const members: TeamMember[] = data?.data || [];
 
+  console.log('[ProjectTeamTab] Members loaded:', members.length);
+  console.log('[ProjectTeamTab] Members data:', members);
+
   const filtered = members.filter(m =>
     !search ||
     m.userName.toLowerCase().includes(search.toLowerCase()) ||
     m.userEmail.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Show error if organizationId is missing
+  if (!project.organizationId) {
+    return (
+      <div className="bg-card border border-dashed border-border rounded-xl p-10 text-center">
+        <Users className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+        <p className="text-sm font-medium text-white mb-1">No Organization Assigned</p>
+        <p className="text-xs text-muted-foreground">This project is not associated with an organization.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

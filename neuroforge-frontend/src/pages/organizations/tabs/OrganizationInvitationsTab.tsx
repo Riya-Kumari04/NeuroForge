@@ -21,7 +21,7 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; labe
 
 const ROLE_LABELS: Record<string, string> = {
   ORG_ADMIN: 'Org Admin', PROJECT_MANAGER: 'Project Manager',
-  DEVELOPER: 'Developer', TESTER: 'QA Tester', CLIENT: 'Client',
+  DEVELOPER: 'Developer', QA: 'QA', CLIENT: 'Client',
 };
 
 const TABS: { key: TabFilter; label: string }[] = [

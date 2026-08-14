@@ -13,7 +13,7 @@ const roleColors: Record<OrgRole, string> = {
   ORG_ADMIN:       'bg-purple-500/20 text-purple-400 border-purple-500/30',
   PROJECT_MANAGER: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   DEVELOPER:       'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  TESTER:          'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  QA:              'bg-orange-500/20 text-orange-400 border-orange-500/30',
   CLIENT:          'bg-slate-500/20 text-slate-400 border-slate-500/30',
 };
 
@@ -22,7 +22,7 @@ const roleLabels: Record<OrgRole, string> = {
   ORG_ADMIN:       'Org Admin',
   PROJECT_MANAGER: 'Project Manager',
   DEVELOPER:       'Developer',
-  TESTER:          'Tester',
+  QA:              'QA',
   CLIENT:          'Client',
 };
 

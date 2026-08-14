@@ -1,10 +1,14 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Users, FolderKanban, MailPlus, Users2, Loader2, Building2 } from 'lucide-react';
+import { Users, FolderKanban, MailPlus, Users2, Loader2, Building2, Clock, X } from 'lucide-react';
 import Sidebar from '@/components/common/Sidebar';
 import DashboardNavbar from '@/components/common/DashboardNavbar';
 import { organizationService, Organization, TeamMember, OrgStatsDto } from '@/services/organizationService';
+import api from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
+
+interface UserDto { id: number; name: string; email: string; role: string; enabled?: boolean; approvalStatus?: string; }
 
 function StatCard({ label, value, icon: Icon, color, bg }: {
   label: string; value: number | string; icon: React.ElementType; color: string; bg: string;
@@ -21,6 +25,10 @@ function StatCard({ label, value, icon: Icon, color, bg }: {
 }
 
 export default function OrgAdminDashboard() {
+  const [showPendingUsers, setShowPendingUsers] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   const { data: orgsData, isLoading: orgsLoading } = useQuery({
     queryKey: ['organizations'],
     queryFn: () => organizationService.getAll().then(r => r.data),
@@ -38,10 +46,27 @@ export default function OrgAdminDashboard() {
     queryFn: () => organizationService.getMembers(firstOrg!.id).then(r => r.data),
     enabled: !!firstOrg?.id,
   });
+  const { data: pendingUsersData, isLoading: pendingUsersLoading } = useQuery({
+    queryKey: ['pending-users'],
+    queryFn: () => api.get<any>('/users/pending').then(r => r.data),
+    enabled: showPendingUsers,
+  });
 
   const stats: OrgStatsDto | undefined = statsData?.data;
   const members: TeamMember[] = membersData?.data || [];
   const isLoading = orgsLoading || statsLoading || membersLoading;
+
+  const approveUserMutation = useMutation({
+    mutationFn: ({ userId, action }: { userId: number; action: string }) =>
+      api.put<any>(`/users/${userId}/approve`, { action }).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-users'] });
+      toast({ title: 'User Updated', description: 'User approval status has been updated.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to update user', variant: 'destructive' });
+    },
+  });
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -93,9 +118,18 @@ export default function OrgAdminDashboard() {
               <div className="bg-card border border-border rounded-xl shadow-sm">
                 <div className="p-6 border-b border-border flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-white">Members ({members.length})</h2>
-                  <Link href={`/org-admin/organizations/${firstOrg.id}`} className="text-xs text-primary hover:text-blue-400 transition-colors">
-                    View All →
-                  </Link>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowPendingUsers(true)}
+                      className="flex items-center gap-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    >
+                      <Clock className="w-4 h-4" />
+                      Pending Approvals
+                    </button>
+                    <Link href={`/org-admin/organizations/${firstOrg.id}`} className="text-xs text-primary hover:text-blue-400 transition-colors">
+                      View All →
+                    </Link>
+                  </div>
                 </div>
                 {members.length === 0 ? (
                   <div className="p-10 text-center text-sm text-muted-foreground">No members yet.</div>
@@ -137,6 +171,73 @@ export default function OrgAdminDashboard() {
           )}
         </main>
       </div>
+
+      {/* Pending Users Modal */}
+      {showPendingUsers && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-4xl shadow-xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white">Pending User Approvals</h3>
+              <button onClick={() => setShowPendingUsers(false)} className="text-muted-foreground hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {pendingUsersLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                {pendingUsersData?.data?.length === 0 ? (
+                  <div className="text-center text-sm text-muted-foreground py-8">No pending users awaiting approval.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingUsersData?.data?.map((user: UserDto) => (
+                      <div key={user.id} className="bg-background/50 border border-border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                              {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-white">{user.name}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs px-2 py-0.5 rounded bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                                  {user.role?.replace('ROLE_', '') || 'USER'}
+                                </span>
+                                <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                  PENDING
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => approveUserMutation.mutate({ userId: user.id, action: 'APPROVE' })}
+                              disabled={approveUserMutation.isPending}
+                              className="px-3 py-1.5 text-sm bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => approveUserMutation.mutate({ userId: user.id, action: 'REJECT' })}
+                              disabled={approveUserMutation.isPending}
+                              className="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

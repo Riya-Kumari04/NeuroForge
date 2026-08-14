@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Edit2, Loader2, LayoutDashboard, GitBranch, UserPlus, Users, CheckSquare, Shield, Settings } from 'lucide-react';
+import { ArrowLeft, Edit2, Loader2, LayoutDashboard, GitBranch, UserPlus, Users, CheckSquare, Shield, Settings, KanbanSquare, ListTodo, FileText, ExternalLink } from 'lucide-react';
 import { Link } from 'wouter';
 import { projectService, Project } from '@/services/projectService';
 import { useAuth } from '@/context/AuthContext';
@@ -16,17 +16,27 @@ import ProjectTeamTab from './tabs/ProjectTeamTab';
 import ProjectTasksTab from './tabs/ProjectTasksTab';
 import ProjectHealthTab from './tabs/ProjectHealthTab';
 import ProjectSettingsTab from './tabs/ProjectSettingsTab';
+import ProjectBacklogTab from './tabs/ProjectBacklogTab';
+import ProjectKanbanTab from './tabs/ProjectKanbanTab';
+import ProjectRequirementsTab from './tabs/ProjectRequirementsTab';
+import ProjectPipelineTab from './tabs/ProjectPipelineTab';
+import RepositoryIntegrationPage from '@/pages/dashboards/RepositoryIntegrationPage';
 
-type TabId = 'overview' | 'timeline' | 'members' | 'tasks' | 'team' | 'health' | 'settings';
+type TabId = 'overview' | 'timeline' | 'members' | 'tasks' | 'team' | 'health' | 'settings' | 'backlog' | 'kanban' | 'requirements' | 'repositories' | 'pipeline';
 
 const ALL_TABS: Array<{ id: TabId; label: string; icon: React.ElementType; managerOnly?: boolean; clientHidden?: boolean }> = [
-  { id: 'overview',  label: 'Overview',  icon: LayoutDashboard },
-  { id: 'tasks',     label: 'Tasks',     icon: CheckSquare,   clientHidden: true },
-  { id: 'timeline',  label: 'Timeline',  icon: GitBranch,     clientHidden: true },
-  { id: 'team',      label: 'Org Team',  icon: Users,         clientHidden: true },
-  { id: 'health',    label: 'Health',    icon: Shield },
-  { id: 'members',   label: 'Members',   icon: UserPlus,      managerOnly: true },
-  { id: 'settings',  label: 'Settings',  icon: Settings,      managerOnly: true },
+  { id: 'overview',      label: 'Overview',      icon: LayoutDashboard },
+  { id: 'requirements', label: 'Requirements', icon: FileText,       clientHidden: true },
+  { id: 'backlog',       label: 'Backlog',       icon: ListTodo,      clientHidden: true },
+  { id: 'kanban',        label: 'Kanban',        icon: KanbanSquare,  clientHidden: true },
+  { id: 'tasks',         label: 'Tasks',         icon: CheckSquare,   clientHidden: true },
+  { id: 'timeline',      label: 'Timeline',      icon: GitBranch,     clientHidden: true },
+  { id: 'team',          label: 'Org Team',      icon: Users,         clientHidden: true },
+  { id: 'health',        label: 'Health',        icon: Shield },
+  { id: 'pipeline',      label: 'Pipeline',      icon: GitBranch,     clientHidden: true },
+  { id: 'repositories',  label: 'Repositories',  icon: GitBranch,     managerOnly: true },
+  { id: 'members',       label: 'Members',       icon: UserPlus,      managerOnly: true },
+  { id: 'settings',      label: 'Settings',      icon: Settings,      managerOnly: true },
 ];
 
 export default function ProjectDetailPage() {
@@ -52,6 +62,11 @@ export default function ProjectDetailPage() {
     enabled: !!id,
   });
   const project: Project | undefined = data?.data;
+
+  console.log('[ProjectDetailPage] Project ID:', id);
+  console.log('[ProjectDetailPage] Project data:', project);
+  console.log('[ProjectDetailPage] organizationId:', project?.organizationId);
+  console.log('[ProjectDetailPage] organizationName:', project?.organizationName);
 
   // If current tab was hidden by role, reset to overview
   const safeTab = tabs.some(t => t.id === activeTab) ? activeTab : 'overview';
@@ -141,13 +156,18 @@ export default function ProjectDetailPage() {
 
               {/* Tab Content */}
               <div>
-                {safeTab === 'overview'  && <ProjectOverviewTab  project={project} />}
-                {safeTab === 'tasks'     && <ProjectTasksTab     project={project} />}
-                {safeTab === 'timeline'  && <ProjectTimelineTab  project={project} />}
-                {safeTab === 'members'   && <ProjectMembersTab   project={project} />}
-                {safeTab === 'team'      && <ProjectTeamTab      project={project} />}
-                {safeTab === 'health'    && <ProjectHealthTab    project={project} />}
-                {safeTab === 'settings'  && <ProjectSettingsTab  project={project} />}
+                {safeTab === 'overview'      && <ProjectOverviewTab      project={project} />}
+                {safeTab === 'requirements' && <ProjectRequirementsTab project={project} />}
+                {safeTab === 'backlog'       && <ProjectBacklogTab       project={project} />}
+                {safeTab === 'kanban'        && <ProjectKanbanTab        project={project} />}
+                {safeTab === 'tasks'         && <ProjectTasksTab         project={project} />}
+                {safeTab === 'timeline'      && <ProjectTimelineTab      project={project} />}
+                {safeTab === 'members'       && <ProjectMembersTab       project={project} />}
+                {safeTab === 'team'          && <ProjectTeamTab          project={project} />}
+                {safeTab === 'health'        && <ProjectHealthTab        project={project} />}
+                {safeTab === 'pipeline'      && <ProjectPipelineTab      projectId={id} />}
+                {safeTab === 'repositories'  && <RepositoryIntegrationPage projectId={id} isTab={true} />}
+                {safeTab === 'settings'      && <ProjectSettingsTab      project={project} />}
               </div>
             </>
           )}

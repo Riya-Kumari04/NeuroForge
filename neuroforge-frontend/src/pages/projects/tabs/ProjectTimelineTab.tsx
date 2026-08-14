@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, GitBranch, Calendar, Trash2, Edit2, Loader2, X } from 'lucide-react';
-import { projectService, Sprint, Project } from '@/services/projectService';
+import { Plus, GitBranch, Calendar, Trash2, Edit2, Loader2, X, BarChart3, Play, CheckCircle, LayoutGrid } from 'lucide-react';
+import { projectService, Sprint, Project, Task } from '@/services/projectService';
+import { sprintService } from '@/services/sprintService';
 import { useAuth } from '@/context/AuthContext';
-import { canManageSprints } from '@/lib/roleUtils';
+import { canManageSprints, getProjectBasePath } from '@/lib/roleUtils';
 import HealthBadge from '@/components/projects/HealthBadge';
 import ConfirmDialog from '@/components/projects/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'wouter';
 
 interface Props { project: Project }
 
@@ -96,18 +98,28 @@ function SprintModal({ sprint, projectId, onClose }: { sprint?: Sprint; projectI
 
 export default function ProjectTimelineTab({ project }: Props) {
   const { role } = useAuth();
-  const canManage = canManageSprints(role);   // PM, Org Admin, Super Admin only
+  const basePath = getProjectBasePath(role);
+  const canManage = canManageSprints(role);   // PM, Org Admin, Super Admin only (not client)
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [sprintModal, setSprintModal] = useState<Sprint | null | 'new'>(null);
   const [deleteTarget, setDeleteTarget] = useState<Sprint | null>(null);
+  const [startTarget, setStartTarget] = useState<Sprint | null>(null);
+  const [completeTarget, setCompleteTarget] = useState<Sprint | null>(null);
+  const [viewMode, setViewMode] = useState<'timeline' | 'gantt'>('timeline');
 
   const { data, isLoading } = useQuery({
     queryKey: ['sprints', project.id],
     queryFn: () => projectService.getSprintsByProject(project.id).then(r => r.data),
   });
   const sprints: Sprint[] = data?.data || [];
+
+  const { data: tasksData } = useQuery({
+    queryKey: ['project-tasks', project.id],
+    queryFn: () => projectService.getTasksByProject(project.id).then(r => r.data),
+  });
+  const tasks: Task[] = tasksData?.data || [];
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => projectService.deleteSprint(id),
@@ -118,6 +130,26 @@ export default function ProjectTimelineTab({ project }: Props) {
     },
   });
 
+  const startSprintMutation = useMutation({
+    mutationFn: (sprintId: number) => sprintService.startSprint(sprintId.toString()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sprints', project.id] });
+      toast({ title: 'Sprint started' });
+      setStartTarget(null);
+    },
+    onError: () => toast({ title: 'Error', description: 'Failed to start sprint.', variant: 'destructive' }),
+  });
+
+  const completeSprintMutation = useMutation({
+    mutationFn: (sprintId: number) => sprintService.completeSprint(sprintId.toString()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sprints', project.id] });
+      toast({ title: 'Sprint completed' });
+      setCompleteTarget(null);
+    },
+    onError: () => toast({ title: 'Error', description: 'Failed to complete sprint.', variant: 'destructive' }),
+  });
+
   const formatDate = (dt?: string) =>
     dt ? new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
@@ -125,15 +157,37 @@ export default function ProjectTimelineTab({ project }: Props) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold text-white">Sprints ({sprints.length})</h3>
-        {/* New Sprint — project managers and above only */}
-        {canManage && (
-          <button
-            onClick={() => setSprintModal('new')}
-            className="flex items-center gap-1.5 bg-primary text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Sprint
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center bg-background border border-border rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('timeline')}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                viewMode === 'timeline' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'
+              }`}
+            >
+              Timeline
+            </button>
+            <button
+              onClick={() => setViewMode('gantt')}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                viewMode === 'gantt' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5 inline mr-1" />
+              Gantt
+            </button>
+          </div>
+          {/* New Sprint — project managers and above only */}
+          {canManage && (
+            <button
+              onClick={() => setSprintModal('new')}
+              className="flex items-center gap-1.5 bg-primary text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> New Sprint
+            </button>
+          )}
+        </div>
       </div>
 
       {isLoading && <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>}
@@ -143,13 +197,13 @@ export default function ProjectTimelineTab({ project }: Props) {
           <GitBranch className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-medium text-white mb-1">No sprints yet</p>
           <p className="text-xs text-muted-foreground">
-            {canManage ? 'Create your first sprint to start planning.' : 'No sprints have been created for this project.'}
+            {canManage ? 'Create your first sprint to start planning.' : (role === 'client' ? 'No sprints have been created for this project.' : 'No sprints have been created for this project.')}
           </p>
         </div>
       )}
 
-      {/* Timeline */}
-      {sprints.length > 0 && (
+      {/* Timeline View */}
+      {viewMode === 'timeline' && sprints.length > 0 && (
         <div className="relative">
           <div className="absolute left-5 top-5 bottom-5 w-px bg-border/50" />
           <div className="space-y-4">
@@ -164,6 +218,34 @@ export default function ProjectTimelineTab({ project }: Props) {
                     </div>
                     <div className="flex items-center gap-2">
                       <HealthBadge status={sprint.status} size="sm" />
+                      {/* View Dashboard */}
+                      <Link
+                        href={`${basePath}/${project.id}/sprints/${sprint.id}/dashboard`}
+                        className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+                        title="View sprint dashboard"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                      </Link>
+                      {/* Start Sprint — only for PLANNED sprints */}
+                      {canManage && sprint.status === 'PLANNED' && (
+                        <button
+                          onClick={() => setStartTarget(sprint)}
+                          className="p-1.5 rounded hover:bg-green-500/10 text-muted-foreground hover:text-green-400 transition-colors"
+                          title="Start sprint"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {/* Complete Sprint — only for ACTIVE sprints */}
+                      {canManage && sprint.status === 'ACTIVE' && (
+                        <button
+                          onClick={() => setCompleteTarget(sprint)}
+                          className="p-1.5 rounded hover:bg-blue-500/10 text-muted-foreground hover:text-blue-400 transition-colors"
+                          title="Complete sprint"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       {/* Edit / Delete — project managers and above only */}
                       {canManage && (
                         <>
@@ -198,6 +280,70 @@ export default function ProjectTimelineTab({ project }: Props) {
         </div>
       )}
 
+      {/* Gantt View */}
+      {viewMode === 'gantt' && sprints.length > 0 && (
+        <div className="bg-card border border-border rounded-xl p-6 overflow-x-auto">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+              <div className="text-xs font-semibold text-muted-foreground">Sprint / Task</div>
+              <div className="text-xs font-semibold text-muted-foreground">Timeline</div>
+            </div>
+            {sprints.map((sprint) => {
+              const sprintTasks = tasks.filter(t => t.sprintId === sprint.id);
+              const sprintStart = sprint.startDate ? new Date(sprint.startDate).getTime() : Date.now();
+              const sprintEnd = sprint.endDate ? new Date(sprint.endDate).getTime() : sprintStart + 14 * 24 * 60 * 60 * 1000;
+              const sprintDuration = sprintEnd - sprintStart;
+              const projectStart = Math.min(...sprints.map(s => s.startDate ? new Date(s.startDate).getTime() : Date.now()));
+              const projectEnd = Math.max(...sprints.map(s => s.endDate ? new Date(s.endDate).getTime() : Date.now() + 30 * 24 * 60 * 60 * 1000));
+              const totalDuration = projectEnd - projectStart;
+
+              const sprintLeft = ((sprintStart - projectStart) / totalDuration) * 100;
+              const sprintWidth = (sprintDuration / totalDuration) * 100;
+
+              return (
+                <div key={sprint.id} className="mb-6">
+                  <div className="grid grid-cols-[200px_1fr] gap-4 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        sprint.status === 'COMPLETED' ? 'bg-emerald-500' :
+                        sprint.status === 'ACTIVE' ? 'bg-blue-500' :
+                        sprint.status === 'PLANNED' ? 'bg-slate-500' : 'bg-red-500'
+                      }`} />
+                      <span className="text-sm font-medium text-white">{sprint.sprintName}</span>
+                    </div>
+                    <div className="relative h-8 bg-background/50 rounded">
+                      <div
+                        className={`absolute h-full rounded ${
+                          sprint.status === 'COMPLETED' ? 'bg-emerald-500/30 border border-emerald-500' :
+                          sprint.status === 'ACTIVE' ? 'bg-blue-500/30 border border-blue-500' :
+                          sprint.status === 'PLANNED' ? 'bg-slate-500/30 border border-slate-500' : 'bg-red-500/30 border border-red-500'
+                        }`}
+                        style={{ left: `${Math.max(0, sprintLeft)}%`, width: `${Math.min(100, sprintWidth)}%` }}
+                      >
+                        <div className="px-2 py-1 text-xs text-white truncate">{formatDate(sprint.startDate)} - {formatDate(sprint.endDate)}</div>
+                      </div>
+                    </div>
+                  </div>
+                  {sprintTasks.map(task => (
+                    <div key={task.id} className="grid grid-cols-[200px_1fr] gap-4 mb-1 ml-4">
+                      <div className="text-xs text-muted-foreground truncate">{task.title}</div>
+                      <div className="relative h-6">
+                        <div
+                          className="absolute h-full bg-primary/20 border border-primary/50 rounded"
+                          style={{ left: `${Math.max(0, sprintLeft + 2)}%`, width: `${Math.min(100, sprintWidth - 4)}%` }}
+                        >
+                          <div className="px-2 py-0.5 text-xs text-primary truncate">{task.status}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {canManage && sprintModal !== null && (
         <SprintModal
           sprint={sprintModal === 'new' ? undefined : sprintModal}
@@ -214,6 +360,28 @@ export default function ProjectTimelineTab({ project }: Props) {
           onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
           isLoading={deleteMutation.isPending}
+        />
+      )}
+      {canManage && (
+        <ConfirmDialog
+          open={!!startTarget}
+          title="Start Sprint"
+          message={`Start "${startTarget?.sprintName}"? This will mark the sprint as active.`}
+          confirmLabel="Start"
+          onConfirm={() => startTarget && startSprintMutation.mutate(startTarget.id)}
+          onCancel={() => setStartTarget(null)}
+          isLoading={startSprintMutation.isPending}
+        />
+      )}
+      {canManage && (
+        <ConfirmDialog
+          open={!!completeTarget}
+          title="Complete Sprint"
+          message={`Complete "${completeTarget?.sprintName}"? This will mark the sprint as completed.`}
+          confirmLabel="Complete"
+          onConfirm={() => completeTarget && completeSprintMutation.mutate(completeTarget.id)}
+          onCancel={() => setCompleteTarget(null)}
+          isLoading={completeSprintMutation.isPending}
         />
       )}
     </div>

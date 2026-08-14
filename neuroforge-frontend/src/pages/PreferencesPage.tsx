@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Palette, Bell, Globe, Save, Loader2, Check } from 'lucide-react';
+import { ArrowLeft, Bell, Globe, Save, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import Sidebar from '@/components/common/Sidebar';
 import DashboardNavbar from '@/components/common/DashboardNavbar';
@@ -12,13 +12,12 @@ const LANGUAGES = ['English', 'French', 'German', 'Spanish', 'Portuguese', 'Arab
 const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Asia/Shanghai', 'Australia/Sydney'];
 
 interface Prefs {
-  theme: 'dark' | 'light' | 'system';
   notifications: boolean;
   language: string;
   timezone: string;
 }
 
-const DEFAULTS: Prefs = { theme: 'dark', notifications: true, language: 'English', timezone: 'UTC' };
+const DEFAULTS: Prefs = { notifications: true, language: 'English', timezone: 'UTC' };
 
 export default function PreferencesPage() {
   const { role } = useAuth();
@@ -35,7 +34,9 @@ export default function PreferencesPage() {
 
   useEffect(() => {
     const d = prefRes?.data;
-    if (d) setPrefs(prev => ({ ...prev, ...d }));
+    if (d) {
+      setPrefs(prev => ({ ...prev, ...d }));
+    }
   }, [prefRes]);
 
   const patch = (updates: Partial<Prefs>) => {
@@ -45,11 +46,14 @@ export default function PreferencesPage() {
 
   const saveMutation = useMutation({
     mutationFn: () => api.put('/users/me/preferences', prefs),
-    onSuccess: () => { setDirty(false); toast({ title: 'Preferences saved' }); },
+    onSuccess: () => {
+      setDirty(false);
+      toast({ title: 'Preferences saved' });
+    },
     onError: (e: any) => toast({ title: 'Save failed', description: e?.response?.data?.message ?? 'Error', variant: 'destructive' }),
   });
 
-  const selectCls = 'w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary transition-colors';
+  const selectCls = 'w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors';
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -68,34 +72,6 @@ export default function PreferencesPage() {
           </button>
 
           <div className="max-w-2xl space-y-6">
-
-            {/* ── Appearance ─────────────────────────────────── */}
-            <div className="bg-card border border-border rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Palette className="w-4 h-4 text-primary" />
-                </div>
-                <h3 className="text-sm font-semibold text-white">Appearance</h3>
-              </div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Theme</label>
-              <div className="flex gap-3">
-                {(['dark', 'light', 'system'] as const).map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => patch({ theme: t })}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors capitalize ${
-                      prefs.theme === t
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:text-white hover:border-border/80'
-                    }`}
-                  >
-                    {prefs.theme === t && <Check className="w-3.5 h-3.5" />}
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* ── Notifications ───────────────────────────────── */}
             <div className="bg-card border border-border rounded-xl p-6">

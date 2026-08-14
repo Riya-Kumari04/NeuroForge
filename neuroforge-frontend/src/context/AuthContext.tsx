@@ -14,6 +14,7 @@ interface AuthContextType {
   setUser: (user: AuthUser) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  approvalStatus?: string;   // derived from user.approvalStatus
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const role = mapBackendRoleToUiRole(user?.role);
+  const approvalStatus = user?.approvalStatus;
 
   return (
     <AuthContext.Provider
@@ -39,6 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser,
         logout,
         isAuthenticated: !!user,
+        approvalStatus,
       }}
     >
       {children}

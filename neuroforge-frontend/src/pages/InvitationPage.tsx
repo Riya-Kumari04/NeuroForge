@@ -20,7 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
   ORG_ADMIN: 'Organization Admin',
   PROJECT_MANAGER: 'Project Manager',
   DEVELOPER: 'Developer',
-  TESTER: 'QA Tester',
+  QA: 'QA',
   CLIENT: 'Client',
 };
 

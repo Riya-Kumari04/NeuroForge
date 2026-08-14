@@ -170,14 +170,16 @@ export default function SignupPage() {
         password: data.password,
       });
 
-      // Auto-login with the credentials just created so the new user lands
-      // straight on their own dashboard, instead of being bounced back to
-      // the login screen to sign in a second time.
-      const user = await authService.login(submittedEmail, data.password);
-      setUser(user);
-
-      const destination = roleRouteMap[mapBackendRoleToUiRole(user.role) ?? ''] ?? '/login';
-      setLocation(destination);
+      // For invitation-based registration, auto-login (user is already APPROVED)
+      if (hasInvitation) {
+        const user = await authService.login(submittedEmail, data.password);
+        setUser(user);
+        const destination = roleRouteMap[mapBackendRoleToUiRole(user.role) ?? ''] ?? '/login';
+        setLocation(destination);
+      } else {
+        // For normal registration, redirect to pending approval page
+        setLocation('/pending-approval');
+      }
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||

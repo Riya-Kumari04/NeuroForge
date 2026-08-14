@@ -22,13 +22,13 @@ export default function QADashboard() {
     <div className="min-h-screen bg-background flex">
       <Sidebar />
       <div className="flex-1 ml-64 flex flex-col">
-        <DashboardNavbar title="QA / Tester Dashboard" />
+        <DashboardNavbar title="QA Dashboard" />
         <main className="flex-1 p-8 overflow-y-auto">
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white">QA / Tester Dashboard</h2>
+            <h2 className="text-2xl font-bold text-white">QA Dashboard</h2>
             <p className="text-muted-foreground text-sm mt-1">
-              Welcome back, {user?.name || 'Tester'}. View your testing assignments and projects below.
+              Welcome back, {user?.name || 'QA'}. View your testing assignments and projects below.
             </p>
           </div>
 
@@ -38,7 +38,7 @@ export default function QADashboard() {
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <h3 className="text-muted-foreground text-sm font-medium mb-1">Role</h3>
-              <p className="text-xl font-bold text-white">QA Tester</p>
+              <p className="text-xl font-bold text-white">QA</p>
             </div>
             <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
               <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4">
@@ -59,7 +59,7 @@ export default function QADashboard() {
           <div className="bg-card border border-border rounded-xl shadow-sm">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Testing Projects</h2>
-              <Link href="/tester/projects" className="text-xs text-primary hover:text-blue-400 transition-colors">
+              <Link href="/qa/projects" className="text-xs text-primary hover:text-blue-400 transition-colors">
                 View All →
               </Link>
             </div>
@@ -85,7 +85,7 @@ export default function QADashboard() {
                         <td className="px-5 py-3.5"><HealthBadge status={p.status} size="sm" /></td>
                         <td className="px-5 py-3.5 text-muted-foreground">{p.organizationName || '—'}</td>
                         <td className="px-5 py-3.5">
-                          <Link href={`/tester/projects/${p.id}`} className="text-xs text-primary hover:text-blue-400 transition-colors">
+                          <Link href={`/qa/projects/${p.id}`} className="text-xs text-primary hover:text-blue-400 transition-colors">
                             Open →
                           </Link>
                         </td>

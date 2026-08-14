@@ -23,7 +23,7 @@ const roles = [
   { id: 'org-admin',        title: 'Org Admin',        icon: Building     },
   { id: 'project-manager',  title: 'Project Manager',  icon: Kanban       },
   { id: 'developer',        title: 'Developer',        icon: Code2        },
-  { id: 'tester',           title: 'QA Tester',        icon: Bug          },
+  { id: 'qa',              title: 'QA',              icon: Bug          },
   { id: 'client',           title: 'Client',           icon: UserSquare2  },
 ];
 
