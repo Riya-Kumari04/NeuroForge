@@ -247,7 +247,7 @@ export default function LoginPage() {
 
             {/* Google OAuth — redirects to backend Google OAuth flow */}
             <a
-              href="/oauth2/authorization/google"
+              href="http://localhost:8081/oauth2/authorization/google"
               className="mt-4 w-full bg-background border border-border text-white font-medium rounded-lg py-2.5 hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">

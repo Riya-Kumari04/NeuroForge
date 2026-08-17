@@ -8,9 +8,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 
-@Configuration
+// Disabled to avoid filter chain conflicts with main SecurityConfig
+// OAuth2 configuration is handled in main SecurityConfig
+// @Configuration
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "spring.security.oauth2.client.registration.google", name = "client-id")
 public class OAuth2SecurityConfig {
@@ -20,6 +23,11 @@ public class OAuth2SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
+    public OAuth2AuthorizedClientRepository authorizedClientRepository() {
+        return new AuthenticatedPrincipalOAuth2AuthorizedClientRepository(authorizedClientService);
+    }
+
+    @Bean
     public SecurityFilterChain oauth2FilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/oauth2/**", "/login/oauth2/**")
@@ -27,6 +35,7 @@ public class OAuth2SecurityConfig {
             .oauth2Login(oauth2 -> oauth2
                 .clientRegistrationRepository(clientRegistrationRepository)
                 .authorizedClientService(authorizedClientService)
+                .authorizedClientRepository(authorizedClientRepository())
                 .successHandler(oAuth2SuccessHandler)
                 .authorizationEndpoint(auth -> auth
                     .baseUri("/oauth2/authorization"))

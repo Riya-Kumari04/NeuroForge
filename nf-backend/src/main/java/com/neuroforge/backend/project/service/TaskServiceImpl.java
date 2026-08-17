@@ -9,6 +9,9 @@ import com.neuroforge.backend.project.entity.ProjectMember;
 import com.neuroforge.backend.project.entity.Sprint;
 import com.neuroforge.backend.project.entity.Task;
 import com.neuroforge.backend.project.entity.TaskStatusHistory;
+import com.neuroforge.backend.project.entity.CodeReview;
+import com.neuroforge.backend.ai.enums.CodeReviewStatus;
+import com.neuroforge.backend.project.repository.CodeReviewRepository;
 import com.neuroforge.backend.project.repository.ProjectMemberRepository;
 import com.neuroforge.backend.project.repository.ProjectRepository;
 import com.neuroforge.backend.project.repository.SprintRepository;
@@ -37,6 +40,7 @@ public class TaskServiceImpl implements TaskService {
     private final SprintRepository sprintRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final TaskStatusHistoryRepository taskStatusHistoryRepository;
+    private final CodeReviewRepository codeReviewRepository;
     private final SpecificationRepository specificationRepository;
     private final SpecificationVersionRepository specificationVersionRepository;
     private final BoardEventPublisher boardEventPublisher;
@@ -218,6 +222,18 @@ public class TaskServiceImpl implements TaskService {
             throw AppException.forbidden("Only QA users can move tasks to DONE status");
         }
 
+        // Module 8: Workflow gate - prevent TESTING transition unless code review is ACCEPTED
+        if ("CODE_REVIEW".equals(currentStatus) && "TESTING".equals(newStatus)) {
+            CodeReview latestReview = codeReviewRepository.findTopByTaskIdOrderByCreatedAtDesc(task.getId())
+                    .orElse(null);
+            
+            if (latestReview == null || latestReview.getStatus() != CodeReviewStatus.ACCEPTED) {
+                String reviewStatus = latestReview != null ? latestReview.getStatus().name() : "NOT_SUBMITTED";
+                throw AppException.forbidden(
+                        "Cannot move task to TESTING status. Code review must be ACCEPTED. Current review status: " + reviewStatus);
+            }
+        }
+
         task.setStatus(newStatus);
         Task updated = taskRepository.save(task);
 
@@ -259,6 +275,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     // Module 5: Workflow validation
+    // Module 8: Workflow gate - prevent TESTING transition unless code review is ACCEPTED
     private boolean isValidStatusTransition(String currentStatus, String newStatus) {
         if (currentStatus == null || newStatus == null) {
             return false;
@@ -267,12 +284,20 @@ public class TaskServiceImpl implements TaskService {
             return true;
         }
         // Valid transitions: TODO -> IN_PROGRESS -> CODE_REVIEW -> TESTING -> DONE
-        return ("TODO".equals(currentStatus) && "IN_PROGRESS".equals(newStatus))
+        boolean validTransition = ("TODO".equals(currentStatus) && "IN_PROGRESS".equals(newStatus))
                 || ("IN_PROGRESS".equals(currentStatus) && "CODE_REVIEW".equals(newStatus))
                 || ("CODE_REVIEW".equals(currentStatus) && "TESTING".equals(newStatus))
                 || ("TESTING".equals(currentStatus) && "DONE".equals(newStatus))
                 || ("CODE_REVIEW".equals(currentStatus) && "IN_PROGRESS".equals(newStatus))
                 || ("IN_PROGRESS".equals(currentStatus) && "TODO".equals(newStatus));
+
+        // Module 8: Workflow gate - check code review status before allowing TESTING transition
+        if (validTransition && "CODE_REVIEW".equals(currentStatus) && "TESTING".equals(newStatus)) {
+            // This check will be done in the calling method with task context
+            return true;
+        }
+
+        return validTransition;
     }
 
     private TaskStatusHistoryResponse mapToHistoryResponse(TaskStatusHistory history) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { FolderKanban, CheckSquare, GitBranch, Activity, Loader2 } from 'lucide-react';
+import { FolderKanban, CheckSquare, GitBranch, Activity, Loader2, TrendingUp } from 'lucide-react';
 import Sidebar from '@/components/common/Sidebar';
 import DashboardNavbar from '@/components/common/DashboardNavbar';
 import { projectService, Project } from '@/services/projectService';
@@ -68,6 +68,15 @@ export default function ProjectManagerDashboard() {
                 <StatCard label="Active Projects" value={stats?.activeProjects ?? 0}               icon={Activity}    color="text-emerald-400" bg="bg-emerald-500/10" />
                 <StatCard label="Total Tasks"     value={stats?.totalTasks     ?? 0}               icon={CheckSquare} color="text-violet-400"  bg="bg-violet-500/10" />
                 <StatCard label="Total Sprints"   value={stats?.totalSprints   ?? 0}               icon={GitBranch}   color="text-purple-400"  bg="bg-purple-500/10" />
+              </div>
+
+              <div className="bg-card border border-border rounded-xl shadow-sm mb-6">
+                <div className="p-6">
+                  <Link href="/project-manager/quality-trends" className="flex items-center justify-center gap-3 w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-4 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">
+                    <TrendingUp className="w-5 h-5" />
+                    <span>View Quality Trends Dashboard</span>
+                  </Link>
+                </div>
               </div>
 
               <div className="bg-card border border-border rounded-xl shadow-sm">

@@ -76,6 +76,7 @@ export const taskService = {
   getTasksByStatus: (status: TaskStatus) => api.get<Task[]>(`/tasks/status/${status}`),
   getTasksByPriority: (priority: TaskPriority) => api.get<Task[]>(`/tasks/priority/${priority}`),
   getTasksBySprint: (sprintId: string) => api.get<Task[]>(`/tasks/sprint/${sprintId}`),
+  getTasksByProject: (projectId: string) => api.get<Task[]>(`/tasks/project/${projectId}`),
   getTasksByAssignee: (userId: string) => api.get<Task[]>(`/tasks/assignee/${userId}`),
   getTaskById: (id: string) => api.get<Task>(`/tasks/${id}`),
   updateTask: (id: string, data: CreateTaskRequest) => api.put<Task>(`/tasks/${id}`, data),

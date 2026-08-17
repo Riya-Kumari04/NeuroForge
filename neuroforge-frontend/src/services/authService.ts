@@ -116,4 +116,11 @@ export const authService = {
   },
 
   isAuthenticated: () => !!localStorage.getItem('accessToken'),
+
+  // ── OAuth2 Configuration Check ───────────────────────────────────────────────
+  // GET /oauth2/google/config
+  checkOAuthConfig: async () => {
+    const { data } = await authApi.get('/oauth2/google/config');
+    return data; // { success, message, data: { clientId, authUrl, redirectUri } }
+  },
 };

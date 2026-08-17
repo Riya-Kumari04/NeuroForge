@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Edit2, Loader2, LayoutDashboard, GitBranch, UserPlus, Users, CheckSquare, Shield, Settings, KanbanSquare, ListTodo, FileText, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Edit2, Loader2, LayoutDashboard, GitBranch, UserPlus, Users, CheckSquare, Shield, Settings, KanbanSquare, ListTodo, FileText, ExternalLink, Code2 } from 'lucide-react';
 import { Link } from 'wouter';
 import { projectService, Project } from '@/services/projectService';
 import { useAuth } from '@/context/AuthContext';
@@ -21,8 +21,9 @@ import ProjectKanbanTab from './tabs/ProjectKanbanTab';
 import ProjectRequirementsTab from './tabs/ProjectRequirementsTab';
 import ProjectPipelineTab from './tabs/ProjectPipelineTab';
 import RepositoryIntegrationPage from '@/pages/dashboards/RepositoryIntegrationPage';
+import CodeReviewPage from './CodeReviewPage';
 
-type TabId = 'overview' | 'timeline' | 'members' | 'tasks' | 'team' | 'health' | 'settings' | 'backlog' | 'kanban' | 'requirements' | 'repositories' | 'pipeline';
+type TabId = 'overview' | 'timeline' | 'members' | 'tasks' | 'team' | 'health' | 'settings' | 'backlog' | 'kanban' | 'requirements' | 'repositories' | 'pipeline' | 'code-review';
 
 const ALL_TABS: Array<{ id: TabId; label: string; icon: React.ElementType; managerOnly?: boolean; clientHidden?: boolean }> = [
   { id: 'overview',      label: 'Overview',      icon: LayoutDashboard },
@@ -35,6 +36,7 @@ const ALL_TABS: Array<{ id: TabId; label: string; icon: React.ElementType; manag
   { id: 'health',        label: 'Health',        icon: Shield },
   { id: 'pipeline',      label: 'Pipeline',      icon: GitBranch,     clientHidden: true },
   { id: 'repositories',  label: 'Repositories',  icon: GitBranch,     managerOnly: true },
+  { id: 'code-review',   label: 'Code Review',   icon: Code2,        clientHidden: true },
   { id: 'members',       label: 'Members',       icon: UserPlus,      managerOnly: true },
   { id: 'settings',      label: 'Settings',      icon: Settings,      managerOnly: true },
 ];
@@ -167,6 +169,7 @@ export default function ProjectDetailPage() {
                 {safeTab === 'health'        && <ProjectHealthTab        project={project} />}
                 {safeTab === 'pipeline'      && <ProjectPipelineTab      projectId={id} />}
                 {safeTab === 'repositories'  && <RepositoryIntegrationPage projectId={id} isTab={true} />}
+                {safeTab === 'code-review'   && <CodeReviewPage          projectId={id} isTab={true} />}
                 {safeTab === 'settings'      && <ProjectSettingsTab      project={project} />}
               </div>
             </>

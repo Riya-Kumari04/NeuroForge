@@ -47,6 +47,10 @@ import AIGeneratorPage from '@/pages/specifications/AIGeneratorPage';
 // Module 7: Repository Integration
 import RepositoryIntegrationPage from '@/pages/dashboards/RepositoryIntegrationPage';
 
+// Module 8: AI Code Review Assistant
+import CodeReviewPage from '@/pages/projects/CodeReviewPage';
+import QualityTrendsPage from '@/pages/projects/QualityTrendsPage';
+
 import { UiRoleSlug } from '@/lib/roleUtils';
 
 const guard = (Component: React.ComponentType<any>, role: UiRoleSlug) =>
@@ -75,6 +79,7 @@ export default function AppRoutes() {
       <Route path="/reset-password"  component={ResetPasswordPage} />
       <Route path="/invitation"      component={InvitationPage} />
       <Route path="/oauth2/success"   component={OAuthCallbackPage} />
+      <Route path="/oauth2/callback/google" component={OAuthCallbackPage} />
       <Route path="/pending-approval" component={PendingApprovalPage} />
 
       {/* ── Super Admin ─────────────────────────────────────────────────────── */}
@@ -115,6 +120,9 @@ export default function AppRoutes() {
       <Route path="/project-manager/specifications/generate">{guard(AIGeneratorPage, 'project-manager')}</Route>
       {/* Module 7 - Repository Integration */}
       <Route path="/project-manager/projects/:id/repositories">{guard(RepositoryIntegrationPage, 'project-manager')}</Route>
+      {/* Module 8 - AI Code Review Assistant */}
+      <Route path="/project-manager/projects/:id/code-review">{guard(CodeReviewPage, 'project-manager')}</Route>
+      <Route path="/project-manager/quality-trends">{guard(QualityTrendsPage, 'project-manager')}</Route>
       {sharedRoutes('project-manager')}
       <Route path="/project-manager/:rest*">{guard(ProjectManagerDashboard, 'project-manager')}</Route>
 
@@ -124,6 +132,8 @@ export default function AppRoutes() {
       <Route path="/developer/projects">{guard(ProjectListPage, 'developer')}</Route>
       {/* Module 5 - Sprint Dashboard */}
       <Route path="/developer/projects/:id/sprints/:sprintId/dashboard">{guard(SprintDashboardPage, 'developer')}</Route>
+      {/* Module 8 - AI Code Review Assistant */}
+      <Route path="/developer/projects/:id/code-review">{guard(CodeReviewPage, 'developer')}</Route>
       {sharedRoutes('developer')}
       <Route path="/developer/:rest*">{guard(DeveloperDashboard, 'developer')}</Route>
 
