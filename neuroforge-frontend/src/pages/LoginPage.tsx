@@ -6,14 +6,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { FaBrain } from 'react-icons/fa';
 import { Shield, Building, Kanban, Code2, Bug, UserSquare2, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useAuth, UserRole } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { authService } from '@/services/authService';
+import { mapBackendRoleToUiRole, roleRouteMap } from '@/lib/roleUtils';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  role: z.enum(['super-admin', 'org-admin', 'project-manager', 'developer', 'tester', 'client'], {
-    errorMap: () => ({ message: 'Please select a role' }),
-  }),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   rememberMe: z.boolean().optional(),
 });
@@ -29,41 +27,39 @@ const roles = [
   { id: 'client',           title: 'Client',           icon: UserSquare2  },
 ];
 
-const routeMap: Record<string, string> = {
-  'super-admin':     '/super-admin',
-  'org-admin':       '/org-admin',
-  'project-manager': '/project-manager',
-  'developer':       '/developer',
-  'tester':          '/tester',
-  'client':          '/client',
-};
-
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const { setRole, setUser } = useAuth();
+  const { setUser, isAuthenticated, role } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading]       = useState(false);
   const [apiError, setApiError]         = useState('');
 
+  // Redirect already-authenticated users to their dashboard (role is
+  // derived from their real backend role, never chosen manually)
+  React.useEffect(() => {
+    if (isAuthenticated && role) {
+      setLocation(roleRouteMap[role] ?? '/');
+    }
+  }, [isAuthenticated, role, setLocation]);
+
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', role: 'developer', password: '', rememberMe: false },
+    defaultValues: { email: '', password: '', rememberMe: false },
   });
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     setApiError('');
     try {
-      // Calls POST /auth/login, saves tokens, decodes JWT, returns AuthUser
+      // Calls POST /auth/login, saves tokens, returns AuthUser (with the
+      // account's real backend role, e.g. "ROLE_DEVELOPER")
       const user = await authService.login(data.email, data.password);
 
-      // Store real user in context
+      // Store real user in context — role is derived from user.role
       setUser(user);
 
-      // Role is chosen by the user in the dropdown (frontend routing only)
-      setRole(data.role as UserRole);
-
-      setLocation(routeMap[data.role]);
+      const destination = roleRouteMap[mapBackendRoleToUiRole(user.role) ?? ''] ?? '/';
+      setLocation(destination);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
@@ -183,28 +179,6 @@ export default function LoginPage() {
                 />
                 {errors.email && (
                   <p className="text-xs text-red-400 mt-1">{errors.email.message}</p>
-                )}
-              </div>
-
-              {/* Role selector (frontend routing only) */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-white" htmlFor="role">
-                  Select Role
-                </label>
-                <select
-                  id="role"
-                  className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
-                  {...register('role')}
-                >
-                  <option value="developer">Developer</option>
-                  <option value="project-manager">Project Manager</option>
-                  <option value="tester">QA Tester</option>
-                  <option value="org-admin">Organization Admin</option>
-                  <option value="super-admin">Super Admin</option>
-                  <option value="client">Client / Stakeholder</option>
-                </select>
-                {errors.role && (
-                  <p className="text-xs text-red-400 mt-1">{errors.role.message}</p>
                 )}
               </div>
 

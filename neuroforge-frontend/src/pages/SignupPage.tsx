@@ -7,6 +7,8 @@ import { FaBrain } from 'react-icons/fa';
 import { Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '@/services/authService';
+import { useAuth } from '@/context/AuthContext';
+import { mapBackendRoleToUiRole, roleRouteMap } from '@/lib/roleUtils';
 
 // ─── Step 1 schema: email only ────────────────────────────────────────────────
 const emailSchema = z.object({
@@ -20,7 +22,7 @@ const registerSchema = z.object({
   username: z.string()
     .min(3, 'Username must be at least 3 characters')
     .max(30, 'Username must be at most 30 characters'),
-  role: z.string().min(1, 'Role is required'),
+  role: z.string().optional(),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .max(20)
@@ -47,6 +49,14 @@ function getStrength(pw: string) {
 
 export default function SignupPage() {
   const [, setLocation] = useLocation();
+  const { isAuthenticated, role: authRole, setUser } = useAuth();
+
+  // Redirect already-authenticated users to their dashboard
+  React.useEffect(() => {
+    if (isAuthenticated && authRole) {
+      setLocation(roleRouteMap[authRole] ?? '/');
+    }
+  }, [isAuthenticated, authRole, setLocation]);
 
   // ─── Wizard state ──────────────────────────────────────────────────────────
   const [step, setStep]                   = useState<'email' | 'otp'>('email');
@@ -60,6 +70,8 @@ export default function SignupPage() {
   const [otpError, setOtpError]           = useState('');
   const [apiError, setApiError]           = useState('');
   const [showPassword, setShowPassword]   = useState(false);
+  const [hasInvitation, setHasInvitation] = useState(false);
+  const [invitationRole, setInvitationRole] = useState<string | null>(null);
 
   // ─── Forms ─────────────────────────────────────────────────────────────────
   const emailForm = useForm<EmailFormValues>({
@@ -69,7 +81,7 @@ export default function SignupPage() {
 
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: '', username: '', role:'', password: '', confirmPassword: '' },
+    defaultValues: { fullName: '', username: '', role: '', password: '', confirmPassword: '' },
   });
 
   const pwStrength = getStrength(registerForm.watch('password'));
@@ -81,6 +93,22 @@ export default function SignupPage() {
     try {
       await authService.sendRegistrationOtp(data.email);
       setSubmittedEmail(data.email);
+      
+      // Check if this email has an accepted invitation
+      try {
+        const inviteCheck = await authService.checkInvitation(data.email);
+        setHasInvitation(inviteCheck.data?.hasInvitation || false);
+        setInvitationRole(inviteCheck.data?.role || null);
+        if (inviteCheck.data?.hasInvitation) {
+          // Pre-fill role from invitation
+          registerForm.setValue('role', inviteCheck.data.role || '');
+        }
+      } catch (e) {
+        // If check fails, assume no invitation
+        setHasInvitation(false);
+        setInvitationRole(null);
+      }
+      
       setStep('otp');
     } catch (err: any) {
       const msg =
@@ -125,18 +153,31 @@ export default function SignupPage() {
       setOtpError('Please enter all 6 digits.');
       return;
     }
+    // Validate role selection for normal registration (no invitation)
+    if (!hasInvitation && !data.role) {
+      setApiError('Please select a role');
+      return;
+    }
     setIsRegistering(true);
     setApiError('');
     try {
       await authService.register({
         name:     data.fullName,
         username: data.username,
-        role:     data.role,
+        role:     data.role || (hasInvitation && invitationRole ? invitationRole : ''), // Use selected role or invitation role
         email:    submittedEmail,
         otp:      currentOtp,
         password: data.password,
       });
-      setLocation('/login');
+
+      // Auto-login with the credentials just created so the new user lands
+      // straight on their own dashboard, instead of being bounced back to
+      // the login screen to sign in a second time.
+      const user = await authService.login(submittedEmail, data.password);
+      setUser(user);
+
+      const destination = roleRouteMap[mapBackendRoleToUiRole(user.role) ?? ''] ?? '/login';
+      setLocation(destination);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
@@ -337,25 +378,36 @@ export default function SignupPage() {
                     )}
                   </div>
 
-                  {/* Role */}
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-white" htmlFor="role">Role</label>
-                    <select
-                      id="role"
-                      className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                      {...registerForm.register('role')}
-                   >
-                     <option value="" disabled>Select your role</option>
-                     <option value="ROLE_DEVELOPER">Developer</option>
-                     <option value="ROLE_ORG_ADMIN">Org Admin</option>
-                     <option value="ROLE_PROJECT_MANAGER">Project Manager</option>
-                     <option value="ROLE_TESTER">Tester / QA</option>
-                     <option value="ROLE_CLIENT">Client</option>
-                    </select>
-                    {registerForm.formState.errors.role && (
-                      <p className="text-xs text-red-400">{registerForm.formState.errors.role.message}</p>
-                    )}
-                  </div>
+                  {/* Role - only show if no invitation */}
+                  {!hasInvitation && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-white" htmlFor="role">Role</label>
+                      <select
+                        id="role"
+                        className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                        {...registerForm.register('role')}
+                      >
+                        <option value="" disabled>Select your role</option>
+                        <option value="ROLE_DEVELOPER">Developer</option>
+                        <option value="ROLE_QA">QA</option>
+                        <option value="ROLE_CLIENT">Client</option>
+                      </select>
+                      {registerForm.formState.errors.role && (
+                        <p className="text-xs text-red-400">{registerForm.formState.errors.role.message}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Invitation role indicator */}
+                  {hasInvitation && invitationRole && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
+                      <p className="text-sm text-blue-400">
+                        <span className="font-medium">Invitation Role:</span> {invitationRole.replace('ROLE_', '').replace('_', ' ')}
+                      </p>
+                      <p className="text-xs text-blue-300 mt-1">Your role has been assigned by the organization invitation.</p>
+                    </div>
+                  )}
+
                   {/* Passwords */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="space-y-1.5">

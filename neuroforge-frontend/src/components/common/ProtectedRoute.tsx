@@ -1,15 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth, UserRole } from '@/context/AuthContext';
-
-const roleRouteMap: Record<string, string> = {
-  'super-admin':     '/super-admin',
-  'org-admin':       '/org-admin',
-  'project-manager': '/project-manager',
-  'developer':       '/developer',
-  'tester':          '/tester',
-  'client':          '/client',
-};
+import { roleRouteMap } from '@/lib/roleUtils';
 
 interface Props {
   component: React.ComponentType;

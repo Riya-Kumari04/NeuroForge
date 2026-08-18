@@ -1,14 +1,16 @@
 import React from 'react';
 import { Route, Switch } from 'wouter';
 
-import LandingPage          from '@/pages/LandingPage';
-import LoginPage            from '@/pages/LoginPage';
-import SignupPage           from '@/pages/SignupPage';
-import ForgotPasswordPage   from '@/pages/ForgotPasswordPage';
-import ResetPasswordPage    from '@/pages/ResetPasswordPage';
-import NotFound             from '@/pages/not-found';
-import ProtectedRoute       from '@/components/common/ProtectedRoute';
+import LandingPage            from '@/pages/LandingPage';
+import LoginPage              from '@/pages/LoginPage';
+import SignupPage             from '@/pages/SignupPage';
+import ForgotPasswordPage     from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage      from '@/pages/ResetPasswordPage';
+import NotFound               from '@/pages/not-found';
+import InvitationPage         from '@/pages/InvitationPage';
+import ProtectedRoute         from '@/components/common/ProtectedRoute';
 
+// Role Dashboards
 import SuperAdminDashboard      from '@/pages/dashboards/SuperAdminDashboard';
 import OrgAdminDashboard        from '@/pages/dashboards/OrgAdminDashboard';
 import ProjectManagerDashboard  from '@/pages/dashboards/ProjectManagerDashboard';
@@ -16,58 +18,103 @@ import DeveloperDashboard       from '@/pages/dashboards/DeveloperDashboard';
 import QADashboard              from '@/pages/dashboards/QADashboard';
 import ClientDashboard          from '@/pages/dashboards/ClientDashboard';
 
+// Profile / Preferences / Settings / Search
+import ProfilePage     from '@/pages/ProfilePage';
+import PreferencesPage from '@/pages/PreferencesPage';
+import SettingsPage    from '@/pages/SettingsPage';
+import SearchPage      from '@/pages/SearchPage';
+
+// Organization pages
+import OrganizationListPage     from '@/pages/organizations/OrganizationListPage';
+import OrganizationDetailPage   from '@/pages/organizations/OrganizationDetailPage';
+import CreateOrganizationPage   from '@/pages/organizations/CreateOrganizationPage';
+
+// Project pages
+import ProjectListPage   from '@/pages/projects/ProjectListPage';
+import ProjectDetailPage from '@/pages/projects/ProjectDetailPage';
+import CreateProjectPage from '@/pages/projects/CreateProjectPage';
+import EditProjectPage   from '@/pages/projects/EditProjectPage';
+import PortfolioDashboard from '@/pages/projects/PortfolioDashboard';
+
+import { UiRoleSlug } from '@/lib/roleUtils';
+
+const guard = (Component: React.ComponentType<any>, role: UiRoleSlug) =>
+  <ProtectedRoute component={Component} allowedRole={role} />;
+
+/** Routes shared across every role: profile, preferences, settings, search */
+function sharedRoutes(r: UiRoleSlug) {
+  return (
+    <>
+      <Route path={`/${r}/profile`}>     {guard(ProfilePage,     r)} </Route>
+      <Route path={`/${r}/preferences`}> {guard(PreferencesPage, r)} </Route>
+      <Route path={`/${r}/settings`}>    {guard(SettingsPage,    r)} </Route>
+      <Route path={`/${r}/search`}>      {guard(SearchPage,      r)} </Route>
+    </>
+  );
+}
+
 export default function AppRoutes() {
   return (
     <Switch>
-      {/* Public routes */}
+      {/* ── Public ──────────────────────────────────────────────────────────── */}
       <Route path="/"                component={LandingPage} />
       <Route path="/login"           component={LoginPage} />
       <Route path="/signup"          component={SignupPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password"  component={ResetPasswordPage} />
+      <Route path="/invitation"      component={InvitationPage} />
 
-      {/* Protected dashboard routes — each locked to its role */}
-      <Route path="/super-admin">
-        {() => <ProtectedRoute component={SuperAdminDashboard}     allowedRole="super-admin" />}
-      </Route>
-      <Route path="/super-admin/:rest*">
-        {() => <ProtectedRoute component={SuperAdminDashboard}     allowedRole="super-admin" />}
-      </Route>
+      {/* ── Super Admin ─────────────────────────────────────────────────────── */}
+      <Route path="/super-admin">{guard(SuperAdminDashboard, 'super-admin')}</Route>
+      <Route path="/super-admin/organizations/new">{guard(CreateOrganizationPage, 'super-admin')}</Route>
+      <Route path="/super-admin/organizations/:id">{guard(OrganizationDetailPage, 'super-admin')}</Route>
+      <Route path="/super-admin/organizations">{guard(OrganizationListPage, 'super-admin')}</Route>
+      {sharedRoutes('super-admin')}
+      <Route path="/super-admin/:rest*">{guard(SuperAdminDashboard, 'super-admin')}</Route>
 
-      <Route path="/org-admin">
-        {() => <ProtectedRoute component={OrgAdminDashboard}       allowedRole="org-admin" />}
-      </Route>
-      <Route path="/org-admin/:rest*">
-        {() => <ProtectedRoute component={OrgAdminDashboard}       allowedRole="org-admin" />}
-      </Route>
+      {/* ── Org Admin ───────────────────────────────────────────────────────── */}
+      <Route path="/org-admin">{guard(OrgAdminDashboard, 'org-admin')}</Route>
+      <Route path="/org-admin/organizations/new">{guard(CreateOrganizationPage, 'org-admin')}</Route>
+      <Route path="/org-admin/organizations/:id">{guard(OrganizationDetailPage, 'org-admin')}</Route>
+      <Route path="/org-admin/organizations">{guard(OrganizationListPage, 'org-admin')}</Route>
+      <Route path="/org-admin/portfolio">{guard(PortfolioDashboard, 'org-admin')}</Route>
+      <Route path="/org-admin/projects/new">{guard(CreateProjectPage, 'org-admin')}</Route>
+      <Route path="/org-admin/projects/:id/edit">{guard(EditProjectPage, 'org-admin')}</Route>
+      <Route path="/org-admin/projects/:id">{guard(ProjectDetailPage, 'org-admin')}</Route>
+      <Route path="/org-admin/projects">{guard(ProjectListPage, 'org-admin')}</Route>
+      {sharedRoutes('org-admin')}
+      <Route path="/org-admin/:rest*">{guard(OrgAdminDashboard, 'org-admin')}</Route>
 
-      <Route path="/project-manager">
-        {() => <ProtectedRoute component={ProjectManagerDashboard} allowedRole="project-manager" />}
-      </Route>
-      <Route path="/project-manager/:rest*">
-        {() => <ProtectedRoute component={ProjectManagerDashboard} allowedRole="project-manager" />}
-      </Route>
+      {/* ── Project Manager ─────────────────────────────────────────────────── */}
+      <Route path="/project-manager">{guard(ProjectManagerDashboard, 'project-manager')}</Route>
+      <Route path="/project-manager/portfolio">{guard(PortfolioDashboard, 'project-manager')}</Route>
+      <Route path="/project-manager/projects/new">{guard(CreateProjectPage, 'project-manager')}</Route>
+      <Route path="/project-manager/projects/:id/edit">{guard(EditProjectPage, 'project-manager')}</Route>
+      <Route path="/project-manager/projects/:id">{guard(ProjectDetailPage, 'project-manager')}</Route>
+      <Route path="/project-manager/projects">{guard(ProjectListPage, 'project-manager')}</Route>
+      {sharedRoutes('project-manager')}
+      <Route path="/project-manager/:rest*">{guard(ProjectManagerDashboard, 'project-manager')}</Route>
 
-      <Route path="/developer">
-        {() => <ProtectedRoute component={DeveloperDashboard}      allowedRole="developer" />}
-      </Route>
-      <Route path="/developer/:rest*">
-        {() => <ProtectedRoute component={DeveloperDashboard}      allowedRole="developer" />}
-      </Route>
+      {/* ── Developer ───────────────────────────────────────────────────────── */}
+      <Route path="/developer">{guard(DeveloperDashboard, 'developer')}</Route>
+      <Route path="/developer/projects/:id">{guard(ProjectDetailPage, 'developer')}</Route>
+      <Route path="/developer/projects">{guard(ProjectListPage, 'developer')}</Route>
+      {sharedRoutes('developer')}
+      <Route path="/developer/:rest*">{guard(DeveloperDashboard, 'developer')}</Route>
 
-      <Route path="/tester">
-        {() => <ProtectedRoute component={QADashboard}             allowedRole="tester" />}
-      </Route>
-      <Route path="/tester/:rest*">
-        {() => <ProtectedRoute component={QADashboard}             allowedRole="tester" />}
-      </Route>
+      {/* ── Tester ──────────────────────────────────────────────────────────── */}
+      <Route path="/tester">{guard(QADashboard, 'tester')}</Route>
+      <Route path="/tester/projects/:id">{guard(ProjectDetailPage, 'tester')}</Route>
+      <Route path="/tester/projects">{guard(ProjectListPage, 'tester')}</Route>
+      {sharedRoutes('tester')}
+      <Route path="/tester/:rest*">{guard(QADashboard, 'tester')}</Route>
 
-      <Route path="/client">
-        {() => <ProtectedRoute component={ClientDashboard}         allowedRole="client" />}
-      </Route>
-      <Route path="/client/:rest*">
-        {() => <ProtectedRoute component={ClientDashboard}         allowedRole="client" />}
-      </Route>
+      {/* ── Client ──────────────────────────────────────────────────────────── */}
+      <Route path="/client">{guard(ClientDashboard, 'client')}</Route>
+      <Route path="/client/projects/:id">{guard(ProjectDetailPage, 'client')}</Route>
+      <Route path="/client/projects">{guard(ProjectListPage, 'client')}</Route>
+      {sharedRoutes('client')}
+      <Route path="/client/:rest*">{guard(ClientDashboard, 'client')}</Route>
 
       <Route component={NotFound} />
     </Switch>

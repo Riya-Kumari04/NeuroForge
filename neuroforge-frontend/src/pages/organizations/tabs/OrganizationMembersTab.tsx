@@ -83,7 +83,7 @@ export default function OrganizationMembersTab({ orgId }: Props) {
       <InviteModal
         isOpen={showInvite}
         onClose={() => setShowInvite(false)}
-        onInvite={(email, r) => inviteMut.mutateAsync({ email, role: r })}
+        onInvite={async (email, r) => { await inviteMut.mutateAsync({ email, role: r }); }}
       />
 
       <ConfirmDeleteModal
