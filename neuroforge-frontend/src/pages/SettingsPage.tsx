@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
 import {
-  ArrowLeft, User, Lock, Bell, Palette, Building2, Shield,
+  ArrowLeft, User, Lock, Bell, Building2, Shield,
   Sliders, Info, ChevronRight, Users, Globe, Activity,
 } from 'lucide-react';
 import Sidebar from '@/components/common/Sidebar';
@@ -71,7 +71,6 @@ export default function SettingsPage() {
     { icon: User,    title: 'Profile',               description: 'Update your name, username, phone number, and profile information.',              link: `${base}/profile`,      linkLabel: 'Edit Profile' },
     { icon: Lock,    title: 'Password & Security',   description: 'Change your password and manage account security settings.',                      link: `${base}/profile`,      linkLabel: 'Change Password' },
     { icon: Bell,    title: 'Notifications',          description: 'Configure how and when you receive alerts for tasks, invitations, and events.',    link: `${base}/preferences`,  linkLabel: 'Manage Notifications' },
-    { icon: Palette, title: 'Appearance',             description: 'Choose your preferred theme, display language, and timezone.',                    link: `${base}/preferences`,  linkLabel: 'Edit Preferences' },
   ];
 
   const orgCards: CardDef[] = [

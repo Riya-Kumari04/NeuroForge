@@ -1,0 +1,1 @@
+function h(c,f,{checkForDefaultPrevented:m=!0}={}){return function(s){if(c==null||c(s),m===!1||!s||!s.defaultPrevented)return f==null?void 0:f(s)}}function p(c,[f,m]){return Math.min(m,Math.max(f,c))}export{p as a,h as c};

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Users, Building, FolderKanban, CheckSquare, Loader2, Plus, X, Clock } from 'lucide-react';
+import { Users, Building, FolderKanban, CheckSquare, Loader2, Plus, X, Clock, BarChart3, Trash2 } from 'lucide-react';
 import Sidebar from '@/components/common/Sidebar';
 import DashboardNavbar from '@/components/common/DashboardNavbar';
 import { organizationService, Organization } from '@/services/organizationService';
 import api from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 interface DashboardStats {
   totalProjects: number; activeProjects: number; completedProjects: number;
@@ -32,9 +33,11 @@ function StatCard({ label, value, icon: Icon, color, bg }: {
 export default function SuperAdminDashboard() {
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showPendingUsers, setShowPendingUsers] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserDto | null>(null);
   const [newUser, setNewUser] = useState({ name: '', username: '', email: '', password: '', role: 'ROLE_DEVELOPER', organizationId: '' as any, enabled: true });
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
 
   const { data: orgsData, isLoading: orgsLoading } = useQuery({
     queryKey: ['organizations'],
@@ -85,6 +88,19 @@ export default function SuperAdminDashboard() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: number) => api.delete<any>(`/users/${userId}`).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-users'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-users'] });
+      setDeleteTarget(null);
+      toast({ title: 'User Deleted', description: 'User has been removed from the system.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to delete user', variant: 'destructive' });
+    },
+  });
+
   const handleCreateUser = () => {
     if (!newUser.name || !newUser.username || !newUser.email || !newUser.password || !newUser.role) {
       toast({ title: 'Error', description: 'Please fill all required fields', variant: 'destructive' });
@@ -100,9 +116,15 @@ export default function SuperAdminDashboard() {
         <DashboardNavbar title="Super Admin Dashboard" />
         <main className="flex-1 p-8 overflow-y-auto">
 
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white">Super Admin Dashboard</h2>
-            <p className="text-muted-foreground text-sm mt-1">Manage all organizations, users, and platform settings.</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Super Admin Dashboard</h2>
+              <p className="text-muted-foreground text-sm mt-1">Manage all organizations, users, and platform settings.</p>
+            </div>
+            <Link href="/super-admin/analytics" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+              <BarChart3 className="w-4 h-4" />
+              View Analytics
+            </Link>
           </div>
 
           {isLoading ? (
@@ -149,6 +171,7 @@ export default function SuperAdminDashboard() {
                           <th className="px-6 py-3 font-medium">Email</th>
                           <th className="px-6 py-3 font-medium">Role</th>
                           <th className="px-6 py-3 font-medium">Status</th>
+                          <th className="px-6 py-3 font-medium">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="text-sm divide-y divide-border/50">
@@ -172,6 +195,17 @@ export default function SuperAdminDashboard() {
                               <span className={`text-xs px-2 py-0.5 rounded ${u.enabled ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
                                 {u.enabled ? 'Active' : 'Inactive'}
                               </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              {u.id !== currentUser?.id && (
+                                <button
+                                  onClick={() => setDeleteTarget(u)}
+                                  className="text-red-400 hover:text-red-300 transition-colors"
+                                  title="Delete user"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -356,6 +390,43 @@ export default function SuperAdminDashboard() {
                 )}
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Confirmation Dialog */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white">Delete User</h3>
+              <button onClick={() => setDeleteTarget(null)} className="text-muted-foreground hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-white">
+                Are you sure you want to delete <span className="font-semibold">{deleteTarget.name}</span> ({deleteTarget.email})?
+              </p>
+              <p className="text-xs text-red-400">
+                This action will permanently remove the user from the system, including all their assignments and access.
+              </p>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => deleteUserMutation.mutate(deleteTarget.id)}
+                  disabled={deleteUserMutation.isPending}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                </button>
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 bg-secondary hover:bg-secondary/80 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

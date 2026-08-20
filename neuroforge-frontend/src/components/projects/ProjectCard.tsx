@@ -11,9 +11,11 @@ interface ProjectCardProps {
   progress?: number;
 }
 
-export default function ProjectCard({ project, basePath, progress = 0 }: ProjectCardProps) {
+export default function ProjectCard({ project, basePath }: ProjectCardProps) {
   const formatDate = (dt?: string) =>
     dt ? new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+  const progress = (project as any).progress || 0;
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 transition-all group shadow-sm">

@@ -179,7 +179,7 @@ function TaskModal({ task, projectId, sprintOptions, memberOptions, onClose, rea
 function TaskCommitsModal({ taskId, taskTitle, onClose }: { taskId: number; taskTitle: string; onClose: () => void }) {
   const { data: commits, isLoading } = useQuery({
     queryKey: ['task-commits', taskId],
-    queryFn: () => repositoryService.getTaskCommitsById(taskId).then(r => r.data),
+    queryFn: () => repositoryService.getTaskCommitsById(taskId).then(r => r.data.data),
   });
 
   return (

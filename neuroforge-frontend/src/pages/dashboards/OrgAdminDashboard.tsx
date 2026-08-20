@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Users, FolderKanban, MailPlus, Users2, Loader2, Building2, Clock, X } from 'lucide-react';
+import { Users, FolderKanban, MailPlus, Users2, Loader2, Building2, Clock, X, BarChart3 } from 'lucide-react';
 import Sidebar from '@/components/common/Sidebar';
 import DashboardNavbar from '@/components/common/DashboardNavbar';
 import { organizationService, Organization, TeamMember, OrgStatsDto } from '@/services/organizationService';
@@ -75,9 +75,17 @@ export default function OrgAdminDashboard() {
         <DashboardNavbar title="Organization Admin Dashboard" />
         <main className="flex-1 p-8 overflow-y-auto">
 
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white">Organization Admin Dashboard</h2>
-            <p className="text-muted-foreground text-sm mt-1">Manage your team members, projects, and invitations.</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Organization Admin Dashboard</h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                Manage your organization, teams, and projects.
+              </p>
+            </div>
+            <Link href="/org-admin/analytics" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+              <BarChart3 className="w-4 h-4" />
+              View Analytics
+            </Link>
           </div>
 
           {isLoading ? (

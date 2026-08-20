@@ -4,6 +4,8 @@ import com.neuroforge.backend.dto.*;
 import com.neuroforge.backend.entity.User;
 import com.neuroforge.backend.exception.AppException;
 import com.neuroforge.backend.repository.UserRepository;
+import com.neuroforge.backend.project.repository.ProjectMemberRepository;
+import com.neuroforge.backend.project.repository.TaskRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +30,8 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final TaskRepository taskRepository;
 
     // ── Current user profile ─────────────────────────────────────────────────
 
@@ -150,9 +155,21 @@ public class UserController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_SUPER_ADMIN')")
     @Operation(summary = "Delete a user (Super Admin only)")
+    @Transactional
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> AppException.notFound("User not found"));
+
+        // Remove user from all project memberships
+        projectMemberRepository.deleteAllByTeamMemberId(id);
+
+        // Unassign user from tasks (set assignedToId to null)
+        taskRepository.unassignTasksByUserId(id);
+
+        // Delete the user
         userRepository.deleteById(id);
-        return ResponseEntity.ok(ApiResponse.ok("User deleted"));
+
+        return ResponseEntity.ok(ApiResponse.ok("User deleted successfully from all systems"));
     }
 
     @PutMapping("/{id}/approve")

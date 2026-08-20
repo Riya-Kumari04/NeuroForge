@@ -47,9 +47,16 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<List<ProjectDto>> getAllProjects() {
-        List<ProjectDto> projects = projectRepository.findAllWithOrganization()
-                .stream().map(ProjectDto::from).collect(Collectors.toList());
-        return ApiResponse.ok("Projects retrieved successfully", projects);
+        List<Project> projects = projectRepository.findAllWithOrganization();
+        List<ProjectDto> projectDtos = projects.stream().map(project -> {
+            ProjectDto dto = ProjectDto.from(project);
+            long totalTasks = taskRepository.countByProjectId(project.getId());
+            long completedTasks = taskRepository.countByProjectIdAndStatus(project.getId(), "DONE");
+            double progress = totalTasks == 0 ? 0 : (completedTasks * 100.0) / totalTasks;
+            dto.setProgress(Math.round(progress * 100.0) / 100.0);
+            return dto;
+        }).collect(Collectors.toList());
+        return ApiResponse.ok("Projects retrieved successfully", projectDtos);
     }
 
     @Override

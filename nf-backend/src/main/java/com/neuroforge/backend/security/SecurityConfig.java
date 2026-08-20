@@ -1,7 +1,6 @@
 package com.neuroforge.backend.security;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,10 +15,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
-import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -36,14 +31,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
-    private final ClientRegistrationRepository clientRegistrationRepository;
-    private final OAuth2AuthorizedClientService authorizedClientService;
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     private static final String[] PUBLIC_PATHS = {
         "/auth/**",
-        "/oauth2/**",
-        "/login/oauth2/**",
         "/favicon.ico",
         "/api/invitations/accept",
         "/api/invitations/reject",
@@ -56,11 +46,6 @@ public class SecurityConfig {
         "/ws/**",
         "/pipeline-ws/**"
     };
-
-    @Bean
-    public OAuth2AuthorizedClientRepository authorizedClientRepository() {
-        return new AuthenticatedPrincipalOAuth2AuthorizedClientRepository(authorizedClientService);
-    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -136,24 +121,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/code-reviews/**").hasAuthority("ROLE_PROJECT_MANAGER")
                 .requestMatchers(HttpMethod.DELETE, "/api/code-reviews/**").hasAnyAuthority("ROLE_DEVELOPER", "ROLE_PROJECT_MANAGER")
 
+                // Module 14: Analytics — role-based access controlled via @PreAuthorize on endpoints
+                .requestMatchers("/api/analytics/**").authenticated()
+
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
-        // Configure OAuth2 login if Google client ID is set
-        if (clientRegistrationRepository != null && authorizedClientService != null) {
-            http.oauth2Login(oauth2 -> oauth2
-                .clientRegistrationRepository(clientRegistrationRepository)
-                .authorizedClientService(authorizedClientService)
-                .authorizedClientRepository(authorizedClientRepository())
-                .successHandler(oAuth2SuccessHandler)
-                .authorizationEndpoint(auth -> auth
-                    .baseUri("/oauth2/authorization"))
-                .redirectionEndpoint(redirect -> redirect
-                    .baseUri("/oauth2/callback"))
-            );
-        }
 
         return http.build();
     }

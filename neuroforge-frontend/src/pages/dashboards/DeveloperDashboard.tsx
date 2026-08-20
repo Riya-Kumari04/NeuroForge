@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { FolderKanban, CheckSquare, ShieldCheck, Loader2 } from 'lucide-react';
+import { FolderKanban, CheckSquare, ShieldCheck, Loader2, BarChart3 } from 'lucide-react';
 import Sidebar from '@/components/common/Sidebar';
 import DashboardNavbar from '@/components/common/DashboardNavbar';
 import { projectService, Project } from '@/services/projectService';
@@ -25,11 +25,17 @@ export default function DeveloperDashboard() {
         <DashboardNavbar title="Developer Dashboard" />
         <main className="flex-1 p-8 overflow-y-auto">
 
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white">Developer Dashboard</h2>
-            <p className="text-muted-foreground text-sm mt-1">
-              Welcome back, {user?.name || 'Developer'}. View assigned projects and update task progress.
-            </p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Developer Dashboard</h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                Welcome back, {user?.name || 'Developer'}. View your assigned projects and tasks below.
+              </p>
+            </div>
+            <Link href="/developer/analytics" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+              <BarChart3 className="w-4 h-4" />
+              View Analytics
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">

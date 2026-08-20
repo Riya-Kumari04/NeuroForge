@@ -22,13 +22,28 @@ export default function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-5xl md:text-7xl font-bold tracking-tight text-white mb-6 leading-[1.1]"
+            className="text-4xl md:text-6xl font-bold tracking-tight text-white mb-4 leading-[1.1]"
           >
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-400 to-indigo-400">
-              AI-First
-            </span>{' '}
-            Enterprise<br />SDLC Platform
+            Enterprise Software Lifecycle
           </motion.h1>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-3xl md:text-5xl font-bold tracking-tight text-white mb-4 leading-[1.1]"
+          >
+            and DevOps Management System
+          </motion.h2>
+
+          <motion.h3
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-2xl md:text-4xl font-semibold text-primary mb-6"
+          >
+            Group 2
+          </motion.h3>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}

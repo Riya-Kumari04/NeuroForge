@@ -21,6 +21,7 @@ public class ProjectDto {
     private String organizationName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Double progress;
 
     public static ProjectDto from(Project project) {
 
@@ -41,6 +42,7 @@ public class ProjectDto {
                                 : null)
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
+                .progress(0.0)
                 .build();
     }
 }

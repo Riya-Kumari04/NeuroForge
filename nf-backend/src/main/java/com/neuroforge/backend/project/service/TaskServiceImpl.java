@@ -60,7 +60,12 @@ public class TaskServiceImpl implements TaskService {
             member = projectMemberRepository.findById(request.getAssignedToId())
                     .orElseThrow(() -> AppException.notFound("Project Member not found"));
         }
+        
+        // Generate task key (e.g., NF-123)
+        String taskKey = generateTaskKey(project.getId());
+        
         Task task = Task.builder()
+                .taskKey(taskKey)
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .priority(request.getPriority() == null ? "MEDIUM" : request.getPriority())
@@ -328,5 +333,12 @@ public class TaskServiceImpl implements TaskService {
             return "SYSTEM";
         }
         return authentication.getName();
+    }
+
+    private String generateTaskKey(Long projectId) {
+        // Generate task key in format: NF-{projectId}-{sequenceNumber}
+        // For simplicity, we'll use a timestamp-based approach
+        long sequence = System.currentTimeMillis() % 10000;
+        return String.format("NF-%d-%04d", projectId, sequence);
     }
 }

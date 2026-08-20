@@ -49,4 +49,12 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, Lo
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM ProjectMember pm WHERE pm.project.organization.id = :orgId")
     void deleteByProjectOrganizationId(@Param("orgId") Long orgId);
+
+    /**
+     * Bulk-delete all ProjectMember records for a given user ID (through TeamMember).
+     * Called when deleting a user to remove them from all projects.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM ProjectMember pm WHERE pm.teamMember.user.id = :userId")
+    void deleteAllByTeamMemberId(@Param("userId") Long userId);
 }

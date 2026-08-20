@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Calendar, Target, CheckCircle2, Play, ArrowLeft, TrendingUp, BarChart3, StopCircle } from 'lucide-react';
+import { Loader2, Calendar, Target, CheckCircle2, Play, ArrowLeft, TrendingUp, BarChart3, StopCircle, Download, Sparkles, X } from 'lucide-react';
 import { projectService, Sprint, Task, SprintProgress, BurndownPoint, SprintVelocity } from '@/services/projectService';
+import analyticsService from '@/services/analyticsService';
 import { useAuth } from '@/context/AuthContext';
 import { canWriteSprints } from '@/lib/roleUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +34,7 @@ export default function SprintDashboardPage() {
   const { toast } = useToast();
   const projectId = Number(params.id);
   const sprintId = Number(params.sprintId);
+  const [showAiSummary, setShowAiSummary] = useState(false);
 
   const canWrite = canWriteSprints(role);
 
@@ -44,7 +46,7 @@ export default function SprintDashboardPage() {
 
   const { data: progressData, error: progressError } = useQuery({
     queryKey: ['sprint-progress', sprintId],
-    queryFn: () => projectService.getSprintProgress(sprintId).then(r => r.data),
+    queryFn: () => projectService.getSprintProgress(sprintId).then(r => r.data.data),
     enabled: !!sprintId,
   });
 
@@ -60,7 +62,7 @@ export default function SprintDashboardPage() {
 
   const { data: velocityData, error: velocityError } = useQuery({
     queryKey: ['sprint-velocity', sprintId],
-    queryFn: () => projectService.getSprintVelocity(sprintId).then(r => r.data),
+    queryFn: () => projectService.getSprintVelocity(sprintId).then(r => r.data.data),
     enabled: !!sprintId,
   });
 
@@ -94,6 +96,12 @@ export default function SprintDashboardPage() {
     enabled: !!sprintId,
   });
 
+  const { data: aiSummaryData, isLoading: aiSummaryLoading } = useQuery({
+    queryKey: ['sprint-ai-summary', sprintId],
+    queryFn: () => analyticsService.getSprintHealthSummary(sprintId).then(r => r.data),
+    enabled: !!sprintId && showAiSummary,
+  });
+
   const sprint: Sprint | undefined = sprintData?.data;
   const progress: SprintProgress | undefined = progressData;
   const burndown: BurndownPoint[] | undefined = burndownData;
@@ -106,6 +114,24 @@ export default function SprintDashboardPage() {
   };
 
   const completionPercentage = progress?.completionPercentage || 0;
+
+  const handleExportPdf = async () => {
+    try {
+      const response = await analyticsService.getSprintReportPdf(sprintId);
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sprint-report-${sprintId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: 'PDF exported successfully' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to export PDF', variant: 'destructive' });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -155,26 +181,42 @@ export default function SprintDashboardPage() {
                       {sprint.status}
                     </span>
                   </div>
-                  {canWrite && sprint.status === 'PLANNED' && (
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => startSprintMutation.mutate()}
-                      disabled={startSprintMutation.isPending}
-                      className="flex items-center gap-2 bg-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      onClick={() => setShowAiSummary(true)}
+                      className="flex items-center gap-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                     >
-                      <Play className="w-4 h-4" />
-                      {startSprintMutation.isPending ? 'Starting...' : 'Start Sprint'}
+                      <Sparkles className="w-4 h-4" />
+                      AI Summary
                     </button>
-                  )}
-                  {canWrite && sprint.status === 'ACTIVE' && (
                     <button
-                      onClick={() => completeSprintMutation.mutate()}
-                      disabled={completeSprintMutation.isPending}
-                      className="flex items-center gap-2 bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      onClick={handleExportPdf}
+                      className="flex items-center gap-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                     >
-                      <StopCircle className="w-4 h-4" />
-                      {completeSprintMutation.isPending ? 'Completing...' : 'Complete Sprint'}
+                      <Download className="w-4 h-4" />
+                      Export PDF
                     </button>
-                  )}
+                    {canWrite && sprint.status === 'PLANNED' && (
+                      <button
+                        onClick={() => startSprintMutation.mutate()}
+                        disabled={startSprintMutation.isPending}
+                        className="flex items-center gap-2 bg-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Play className="w-4 h-4" />
+                        {startSprintMutation.isPending ? 'Starting...' : 'Start Sprint'}
+                      </button>
+                    )}
+                    {canWrite && sprint.status === 'ACTIVE' && (
+                      <button
+                        onClick={() => completeSprintMutation.mutate()}
+                        disabled={completeSprintMutation.isPending}
+                        className="flex items-center gap-2 bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <StopCircle className="w-4 h-4" />
+                        {completeSprintMutation.isPending ? 'Completing...' : 'Complete Sprint'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {sprint.goal && (
@@ -422,6 +464,69 @@ export default function SprintDashboardPage() {
           )}
         </main>
       </div>
+
+      {/* AI Summary Modal */}
+      {showAiSummary && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-2xl shadow-xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">AI Sprint Health Summary</h3>
+              </div>
+              <button onClick={() => setShowAiSummary(false)} className="text-muted-foreground hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {aiSummaryLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : aiSummaryData ? (
+              <div className="space-y-4">
+                <div className="bg-background/50 rounded-lg p-4 border border-border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${
+                      aiSummaryData.overallHealth === 'HEALTHY' ? 'bg-emerald-500' :
+                      aiSummaryData.overallHealth === 'AT_RISK' ? 'bg-amber-500' :
+                      'bg-red-500'
+                    }`} />
+                    <span className="text-sm font-medium text-white">Overall Health: {aiSummaryData.overallHealth}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{aiSummaryData.summary}</p>
+                </div>
+                {aiSummaryData.risks && aiSummaryData.risks.length > 0 && (
+                  <div className="bg-red-500/10 rounded-lg p-4 border border-red-500/20">
+                    <h4 className="text-sm font-medium text-red-400 mb-2">Risks Identified</h4>
+                    <ul className="space-y-1">
+                      {aiSummaryData.risks.map((risk, index) => (
+                        <li key={index} className="text-sm text-muted-foreground">• {risk}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {aiSummaryData.recommendations && aiSummaryData.recommendations.length > 0 && (
+                  <div className="bg-emerald-500/10 rounded-lg p-4 border border-emerald-500/20">
+                    <h4 className="text-sm font-medium text-emerald-400 mb-2">Recommendations</h4>
+                    <ul className="space-y-1">
+                      {aiSummaryData.recommendations.map((rec, index) => (
+                        <li key={index} className="text-sm text-muted-foreground">• {rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground mt-4">
+                  Generated at: {new Date(aiSummaryData.generatedAt).toLocaleString()}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-sm text-muted-foreground py-8">
+                Failed to load AI summary. Please try again.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

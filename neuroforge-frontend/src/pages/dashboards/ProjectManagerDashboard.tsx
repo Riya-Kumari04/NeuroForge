@@ -71,10 +71,14 @@ export default function ProjectManagerDashboard() {
               </div>
 
               <div className="bg-card border border-border rounded-xl shadow-sm mb-6">
-                <div className="p-6">
-                  <Link href="/project-manager/quality-trends" className="flex items-center justify-center gap-3 w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-4 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Link href="/project-manager/analytics" className="flex items-center justify-center gap-3 w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-4 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">
+                    <Activity className="w-5 h-5" />
+                    <span>View Analytics Dashboard</span>
+                  </Link>
+                  <Link href="/project-manager/quality-trends" className="flex items-center justify-center gap-3 w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-medium py-4 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">
                     <TrendingUp className="w-5 h-5" />
-                    <span>View Quality Trends Dashboard</span>
+                    <span>View Quality Trends</span>
                   </Link>
                 </div>
               </div>

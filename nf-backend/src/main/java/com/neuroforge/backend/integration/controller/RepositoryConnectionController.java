@@ -52,6 +52,7 @@ public class RepositoryConnectionController {
     }
 
     @GetMapping("/tasks/{taskKey}/commits")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<TaskCommitResponse>> getTaskCommits(
             @PathVariable String taskKey) {
 
@@ -59,6 +60,7 @@ public class RepositoryConnectionController {
     }
 
     @GetMapping("/tasks/{taskId}/commits-by-id")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<TaskCommitResponse>> getTaskCommitsByTaskId(
             @PathVariable Long taskId) {
 

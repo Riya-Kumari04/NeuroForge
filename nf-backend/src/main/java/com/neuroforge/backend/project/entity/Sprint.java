@@ -47,6 +47,11 @@ public class Sprint {
     @OneToMany(mappedBy = "sprint", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Task> tasks;
 
+    // Module 14: Helper method to get organization ID through project
+    public Long getOrganizationId() {
+        return project != null ? project.getOrganization().getId() : null;
+    }
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

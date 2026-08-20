@@ -17,4 +17,7 @@ public interface SprintRepository extends JpaRepository<Sprint, Long> {
     Sprint findFirstByStatus(String status);
     boolean existsByStatus(String status);
     List<Sprint> findByStatus(String status);
+
+    // Module 14: Analytics query methods
+    List<Sprint> findAllByOrderByStartDateAsc();
 }

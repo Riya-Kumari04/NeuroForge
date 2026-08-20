@@ -44,19 +44,6 @@ public class User implements UserDetails {
     private String avatarUrl;
 
     /**
-     * Authentication provider: LOCAL or GOOGLE
-     */
-    @Column(name = "authentication_provider")
-    @Builder.Default
-    private String authenticationProvider = "LOCAL";
-
-    /**
-     * Google OAuth provider ID (Google user ID)
-     */
-    @Column(name = "google_provider_id")
-    private String googleProviderId;
-
-    /**
      * One of: ROLE_SUPER_ADMIN | ROLE_ORG_ADMIN | ROLE_PROJECT_MANAGER
      *         ROLE_DEVELOPER   | ROLE_TESTER    | ROLE_CLIENT
      */
