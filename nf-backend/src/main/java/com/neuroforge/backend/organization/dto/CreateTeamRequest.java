@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class CreateTeamRequest {
     @NotBlank(message = "Team name is required")
@@ -12,4 +14,5 @@ public class CreateTeamRequest {
 
     private String description;
     private Long leadId;
+    private List<Long> initialMemberIds;
 }

@@ -12,7 +12,7 @@ const ROLE_OPTIONS: { value: OrgRole; label: string }[] = [
   { value: 'ORG_ADMIN',       label: 'Organization Admin' },
   { value: 'PROJECT_MANAGER', label: 'Project Manager' },
   { value: 'DEVELOPER',       label: 'Developer' },
-  { value: 'TESTER',          label: 'Tester' },
+  { value: 'QA',              label: 'QA' },
   { value: 'CLIENT',          label: 'Client' },
 ];
 

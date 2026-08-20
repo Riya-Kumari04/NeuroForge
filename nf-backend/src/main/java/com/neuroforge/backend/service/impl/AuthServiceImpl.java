@@ -4,6 +4,12 @@ import com.neuroforge.backend.dto.*;
 import com.neuroforge.backend.entity.Otp;
 import com.neuroforge.backend.entity.User;
 import com.neuroforge.backend.exception.AppException;
+import com.neuroforge.backend.organization.entity.Invite;
+import com.neuroforge.backend.organization.entity.InviteStatus;
+import com.neuroforge.backend.organization.entity.OrgRole;
+import com.neuroforge.backend.organization.entity.TeamMember;
+import com.neuroforge.backend.organization.repository.InviteRepository;
+import com.neuroforge.backend.organization.repository.TeamMemberRepository;
 import com.neuroforge.backend.repository.OtpRepository;
 import com.neuroforge.backend.repository.UserRepository;
 import com.neuroforge.backend.security.JwtUtil;
@@ -19,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Random;
 
 @Slf4j
@@ -26,12 +33,14 @@ import java.util.Random;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private final UserRepository     userRepository;
-    private final OtpRepository      otpRepository;
-    private final PasswordEncoder    passwordEncoder;
-    private final JwtUtil            jwtUtil;
+    private final UserRepository        userRepository;
+    private final OtpRepository         otpRepository;
+    private final PasswordEncoder       passwordEncoder;
+    private final JwtUtil               jwtUtil;
     private final AuthenticationManager authManager;
-    private final JavaMailSender     mailSender;
+    private final JavaMailSender        mailSender;
+    private final InviteRepository      inviteRepository;
+    private final TeamMemberRepository  teamMemberRepository;
 
     // ── Send OTP for registration ─────────────────────────────────────────────
 
@@ -61,20 +70,135 @@ public class AuthServiceImpl implements AuthService {
 
         verifyOtpCode(request.getEmail(), request.getOtp());
 
+        // Determine role and approval requirement
+        Object[] roleResult = determineRoleForRegistration(request.getEmail(), request.getRole());
+        String assignedRole = (String) roleResult[0];
+        boolean requiresApproval = (Boolean) roleResult[1];
+        log.info("Assigning role {} to user {} during registration (approval required: {})", assignedRole, request.getEmail(), requiresApproval);
+
         User user = User.builder()
                 .name(request.getName())
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(request.getRole())
+                .role(assignedRole)
                 .organizationId(request.getOrganizationId())
                 .enabled(true)   // verified via OTP
+                .approvalStatus(requiresApproval ? "PENDING" : "APPROVED")
                 .build();
 
         userRepository.save(user);
         otpRepository.deleteAllByEmail(request.getEmail());
 
+        // Materialise any TeamMember rows for invitations that were accepted
+        // before this account existed (i.e. the user clicked Accept on the
+        // invitation email and only registered afterwards).
+        materialiseAcceptedInvitations(user);
+
         return ApiResponse.ok("Registration successful. You can now log in.");
+    }
+
+    @Override
+    public ApiResponse<InvitationCheckResponse> checkInvitation(String email) {
+        try {
+            List<Invite> acceptedInvites = inviteRepository.findByEmailAndStatus(
+                    email, InviteStatus.ACCEPTED);
+            if (!acceptedInvites.isEmpty()) {
+                OrgRole inviteRole = acceptedInvites.get(0).getRole();
+                String roleString = "ROLE_" + inviteRole.name();
+                log.info("Found accepted invitation for {}, role: {}", email, roleString);
+                return ApiResponse.ok("Invitation found", InvitationCheckResponse.builder()
+                        .hasInvitation(true)
+                        .role(roleString)
+                        .build());
+            }
+            log.info("No accepted invitation found for {}", email);
+            return ApiResponse.ok("No invitation", InvitationCheckResponse.builder()
+                    .hasInvitation(false)
+                    .role(null)
+                    .build());
+        } catch (Exception e) {
+            log.error("Error checking invitation for {}: {}", email, e.getMessage());
+            return ApiResponse.ok("No invitation", InvitationCheckResponse.builder()
+                    .hasInvitation(false)
+                    .role(null)
+                    .build());
+        }
+    }
+
+    /**
+     * Determines the role to assign during registration.
+     * If the user has an accepted invitation, use the role from the invitation (allows admin roles).
+     * Otherwise, use the role from the request (for normal registration) and validate it's not an admin role.
+     * If no invitation and no role in request, throw validation error.
+     * Returns an array with [role, requiresApproval]
+     */
+    private Object[] determineRoleForRegistration(String email, String requestRole) {
+        try {
+            List<Invite> acceptedInvites = inviteRepository.findByEmailAndStatus(
+                    email, InviteStatus.ACCEPTED);
+            if (!acceptedInvites.isEmpty()) {
+                // Use the role from the most recent accepted invitation
+                // Admin roles are allowed from invitations and don't require approval
+                OrgRole inviteRole = acceptedInvites.get(0).getRole();
+                String roleString = "ROLE_" + inviteRole.name();
+                log.info("Found accepted invitation for {}, assigning role from invitation: {}", email, roleString);
+                return new Object[]{roleString, false};
+            }
+        } catch (Exception e) {
+            log.error("Error checking for accepted invitations for {}: {}", email, e.getMessage());
+        }
+        // No invitation exists - role must be provided in request
+        if (requestRole != null && !requestRole.trim().isEmpty()) {
+            // Map role name to proper ROLE_ format
+            String mappedRole = mapRoleToAuthority(requestRole);
+            // Validate that role is not an admin role (only for normal registration)
+            if (isRestrictedRole(mappedRole)) {
+                log.error("Attempted to register with restricted role without invitation: {}", mappedRole);
+                throw AppException.badRequest("Cannot register with admin roles. Admin roles are assigned through invitations only.");
+            }
+            // Non-admin roles require approval
+            log.info("No invitation found for {}, using role from request: {} (mapped from {})", email, mappedRole, requestRole);
+            return new Object[]{mappedRole, true};
+        }
+        // No invitation and no role provided - validation error
+        log.error("No invitation and no request role for {}", email);
+        throw AppException.badRequest("Please select a role");
+    }
+
+    /**
+     * Checks if a role is restricted (admin roles that cannot be self-assigned).
+     */
+    private boolean isRestrictedRole(String role) {
+        return "ROLE_SUPER_ADMIN".equals(role) ||
+               "ROLE_ORG_ADMIN".equals(role) ||
+               "ROLE_PROJECT_MANAGER".equals(role);
+    }
+
+    /**
+     * Maps role names from frontend format to proper ROLE_ authority format.
+     * Handles both already-formatted roles (ROLE_XXX) and short names (QA, Developer, etc.)
+     */
+    private String mapRoleToAuthority(String role) {
+        if (role == null || role.trim().isEmpty()) {
+            return "ROLE_DEVELOPER"; // Default fallback
+        }
+        
+        // If already in ROLE_ format, return as-is
+        if (role.startsWith("ROLE_")) {
+            return role;
+        }
+        
+        // Map short names to proper ROLE_ format
+        return switch (role.toLowerCase()) {
+            case "qa", "tester" -> "ROLE_TESTER";
+            case "developer", "dev" -> "ROLE_DEVELOPER";
+            case "client" -> "ROLE_CLIENT";
+            case "project manager", "pm" -> "ROLE_PROJECT_MANAGER";
+            case "org admin", "organization admin" -> "ROLE_ORG_ADMIN";
+            case "super admin", "superadmin" -> "ROLE_SUPER_ADMIN";
+            default -> "ROLE_" + role.toUpperCase();
+        };
     }
 
     // ── Login ─────────────────────────────────────────────────────────────────
@@ -87,6 +211,15 @@ public class AuthServiceImpl implements AuthService {
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> AppException.notFound("User not found"));
+
+        // Check approval status
+        String approvalStatus = user.getApprovalStatus();
+        if ("PENDING".equals(approvalStatus)) {
+            throw AppException.forbidden("Your account is awaiting organization administrator approval.");
+        }
+        if ("REJECTED".equals(approvalStatus)) {
+            throw AppException.forbidden("Your account has been rejected. Please contact your organization administrator.");
+        }
 
         LoginResponse resp = LoginResponse.builder()
                 .accessToken(jwtUtil.generateAccessToken(user))
@@ -161,6 +294,15 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> AppException.notFound("User not found"));
 
+        // Check approval status
+        String approvalStatus = user.getApprovalStatus();
+        if ("PENDING".equals(approvalStatus)) {
+            throw AppException.forbidden("Your account is awaiting organization administrator approval.");
+        }
+        if ("REJECTED".equals(approvalStatus)) {
+            throw AppException.forbidden("Your account has been rejected. Please contact your organization administrator.");
+        }
+
         LoginResponse resp = LoginResponse.builder()
                 .accessToken(jwtUtil.generateAccessToken(user))
                 .refreshToken(jwtUtil.generateRefreshToken(user))
@@ -185,6 +327,45 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * After a new user registers, check whether any invitations addressed to
+     * their email were already accepted (i.e. the user accepted the link before
+     * creating an account).  For each such invitation, create the corresponding
+     * {@link TeamMember} row so they immediately appear in the organisation's
+     * Members list.
+     */
+    private void materialiseAcceptedInvitations(User user) {
+        try {
+            List<Invite> accepted = inviteRepository.findByEmailAndStatus(
+                    user.getEmail(), InviteStatus.ACCEPTED);
+            log.info("Found {} accepted invitations for email {}", accepted.size(), user.getEmail());
+            
+            for (Invite invite : accepted) {
+                try {
+                    boolean alreadyMember = teamMemberRepository
+                            .findByUserIdAndOrganizationId(user.getId(), invite.getOrganization().getId())
+                            .isPresent();
+                    if (!alreadyMember) {
+                        TeamMember teamMember = TeamMember.builder()
+                                .user(user)
+                                .organization(invite.getOrganization())
+                                .role(invite.getRole())
+                                .build();
+                        teamMemberRepository.save(teamMember);
+                        log.info("Created TeamMember for {} in org {} from accepted invitation",
+                                user.getEmail(), invite.getOrganization().getId());
+                    } else {
+                        log.info("User {} is already a member of org {}", user.getEmail(), invite.getOrganization().getId());
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to create TeamMember for invitation {}: {}", invite.getId(), e.getMessage(), e);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to materialise accepted invitations for {}: {}", user.getEmail(), e.getMessage(), e);
+        }
+    }
 
     private void generateAndSendOtp(String email, String subject, String bodyTemplate) {
         otpRepository.deleteAllByEmail(email);

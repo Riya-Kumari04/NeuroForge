@@ -19,6 +19,11 @@ public interface OrganizationService {
     ApiResponse<TeamDto> updateTeam(Long orgId, Long teamId, CreateTeamRequest request);
     ApiResponse<Void> deleteTeam(Long orgId, Long teamId);
 
+    // Team member management
+    ApiResponse<List<TeamMemberDto>> getTeamMembers(Long orgId, Long teamId);
+    ApiResponse<TeamMemberDto> addMemberToTeam(Long orgId, Long teamId, Long memberId);
+    ApiResponse<Void> removeMemberFromTeam(Long orgId, Long teamId, Long memberId);
+
     ApiResponse<List<TeamMemberDto>> getAllMembers(Long orgId);
     ApiResponse<Void> removeMember(Long orgId, Long memberId);
 

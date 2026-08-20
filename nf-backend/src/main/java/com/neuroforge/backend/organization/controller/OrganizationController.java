@@ -99,6 +99,34 @@ public class OrganizationController {
         return ResponseEntity.ok(orgService.deleteTeam(id, teamId));
     }
 
+    // ── Team Members ──────────────────────────────────────────────────────────
+
+    @GetMapping("/{id}/teams/{teamId}/members")
+    @Operation(summary = "List members of a team")
+    public ResponseEntity<ApiResponse<List<TeamMemberDto>>> listTeamMembers(
+            @PathVariable Long id,
+            @PathVariable Long teamId) {
+        return ResponseEntity.ok(orgService.getTeamMembers(id, teamId));
+    }
+
+    @PostMapping("/{id}/teams/{teamId}/members")
+    @Operation(summary = "Add a member to a team")
+    public ResponseEntity<ApiResponse<TeamMemberDto>> addTeamMember(
+            @PathVariable Long id,
+            @PathVariable Long teamId,
+            @Valid @RequestBody AddTeamMemberRequest req) {
+        return ResponseEntity.ok(orgService.addMemberToTeam(id, teamId, req.getMemberId()));
+    }
+
+    @DeleteMapping("/{id}/teams/{teamId}/members/{memberId}")
+    @Operation(summary = "Remove a member from a team")
+    public ResponseEntity<ApiResponse<Void>> removeTeamMember(
+            @PathVariable Long id,
+            @PathVariable Long teamId,
+            @PathVariable Long memberId) {
+        return ResponseEntity.ok(orgService.removeMemberFromTeam(id, teamId, memberId));
+    }
+
     // ── Members ───────────────────────────────────────────────────────────────
 
     @GetMapping("/{id}/members")

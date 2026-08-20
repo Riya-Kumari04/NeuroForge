@@ -38,7 +38,7 @@ const roles = [
   },
   {
     id: 'qa',
-    title: 'QA Tester',
+    title: 'QA',
     description: 'Automated test runs, bug tracking, and coverage reporting.',
     icon: Bug,
     color: 'from-pink-500 to-rose-600',

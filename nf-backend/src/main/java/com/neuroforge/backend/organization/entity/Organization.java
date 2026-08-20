@@ -28,7 +28,7 @@ public class Organization {
     private String industry;
     private String size;
 
-    @Column(columnDefinition = "VARCHAR(50) DEFAULT 'FREE'")
+    @Column(length = 50)
     @Builder.Default
     private String plan = "FREE";
 

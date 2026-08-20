@@ -4,11 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Building2, Plus } from 'lucide-react';
 import { organizationService, Organization } from '@/services/organizationService';
 import { useAuth } from '@/context/AuthContext';
+import Sidebar from '@/components/common/Sidebar';
+import DashboardNavbar from '@/components/common/DashboardNavbar';
 import OrganizationCard from '@/components/organizations/OrganizationCard';
 import LoadingSkeleton from '@/components/organizations/LoadingSkeleton';
 import EmptyState from '@/components/organizations/EmptyState';
 import SearchFilterBar from '@/components/organizations/SearchFilterBar';
-import PageHeader from '@/components/organizations/PageHeader';
 import PaginationControls from '@/components/organizations/PaginationControls';
 
 const PAGE_SIZE = 9;
@@ -47,62 +48,69 @@ export default function OrganizationListPage() {
   const plans = [...new Set(orgs.map(o => o.plan))];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <PageHeader
-        title="Organizations"
-        description="Manage your organizations and workspaces"
-        breadcrumbs={[{ label: 'Dashboard' }, { label: 'Organizations' }]}
-        action={canCreate ? (
-          <button
-            onClick={() => setLocation(`${basePath}/new`)}
-            className="flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)]"
-          >
-            <Plus className="w-4 h-4" />
-            New Organization
-          </button>
-        ) : undefined}
-      />
-
-      <div className="mb-5">
-        <SearchFilterBar
-          search={search}
-          onSearchChange={v => { setSearch(v); setPage(1); }}
-          placeholder="Search organizations..."
-          filters={[
-            { label: 'All Industries', value: industry, options: industries.map(i => ({ value: i, label: i })), onChange: v => { setIndustry(v); setPage(1); } },
-            { label: 'All Plans', value: plan, options: plans.map(p => ({ value: p, label: p })), onChange: v => { setPlan(v); setPage(1); } },
-          ]}
-        />
-      </div>
-
-      {isLoading && <LoadingSkeleton rows={6} />}
-
-      {isError && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5 text-red-400 text-sm">
-          Failed to load organizations. Please try again.
-        </div>
-      )}
-
-      {!isLoading && !isError && paginated.length === 0 && (
-        <EmptyState
-          icon={Building2}
-          title="No Organizations Found"
-          message={search || industry || plan ? 'Try adjusting your filters.' : 'Get started by creating your first organization.'}
-          action={canCreate ? { label: 'New Organization', onClick: () => setLocation(`${basePath}/new`) } : undefined}
-        />
-      )}
-
-      {!isLoading && !isError && paginated.length > 0 && (
-        <>
-          <p className="text-xs text-muted-foreground mb-3">{filtered.length} organization{filtered.length !== 1 ? 's' : ''} found</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginated.map(org => (
-              <OrganizationCard key={org.id} org={org} basePath={basePath} />
-            ))}
+    <div className="min-h-screen bg-background flex">
+      <Sidebar />
+      <div className="flex-1 ml-64 flex flex-col">
+        <DashboardNavbar title="Organizations" />
+        <main className="flex-1 p-8 overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Organizations</h2>
+              <p className="text-muted-foreground text-sm mt-1">Manage your organizations and workspaces.</p>
+            </div>
+            {canCreate && (
+              <button
+                onClick={() => setLocation(`${basePath}/new`)}
+                className="flex items-center gap-2 bg-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                New Organization
+              </button>
+            )}
           </div>
-          <PaginationControls page={page} totalPages={totalPages} onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
-        </>
-      )}
+
+          <div className="mb-5">
+            <SearchFilterBar
+              search={search}
+              onSearchChange={v => { setSearch(v); setPage(1); }}
+              placeholder="Search organizations..."
+              filters={[
+                { label: 'All Industries', value: industry, options: industries.map(i => ({ value: i, label: i })), onChange: v => { setIndustry(v); setPage(1); } },
+                { label: 'All Plans', value: plan, options: plans.map(p => ({ value: p, label: p })), onChange: v => { setPlan(v); setPage(1); } },
+              ]}
+            />
+          </div>
+
+          {isLoading && <LoadingSkeleton rows={6} />}
+
+          {isError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5 text-red-400 text-sm">
+              Failed to load organizations. Please try again.
+            </div>
+          )}
+
+          {!isLoading && !isError && paginated.length === 0 && (
+            <EmptyState
+              icon={Building2}
+              title="No Organizations Found"
+              message={search || industry || plan ? 'Try adjusting your filters.' : 'Get started by creating your first organization.'}
+              action={canCreate ? { label: 'New Organization', onClick: () => setLocation(`${basePath}/new`) } : undefined}
+            />
+          )}
+
+          {!isLoading && !isError && paginated.length > 0 && (
+            <>
+              <p className="text-xs text-muted-foreground mb-3">{filtered.length} organization{filtered.length !== 1 ? 's' : ''} found</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {paginated.map(org => (
+                  <OrganizationCard key={org.id} org={org} basePath={basePath} />
+                ))}
+              </div>
+              <PaginationControls page={page} totalPages={totalPages} onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

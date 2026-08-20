@@ -25,12 +25,11 @@ public class RegisterRequest {
     private String password;
 
     /**
-     * Accepted values: ROLE_SUPER_ADMIN | ROLE_ORG_ADMIN | ROLE_PROJECT_MANAGER
-     *                  ROLE_DEVELOPER   | ROLE_TESTER    | ROLE_CLIENT
+     * Role is optional for normal registration (required if no invitation).
+     * Role validation is performed in the service layer to distinguish between
+     * invitation-based registration (allows admin roles) and normal registration
+     * (only allows DEVELOPER, QA, CLIENT).
      */
-    @NotBlank(message = "Role is required")
-    @Pattern(regexp = "ROLE_(SUPER_ADMIN|ORG_ADMIN|PROJECT_MANAGER|DEVELOPER|TESTER|CLIENT)",
-             message = "Invalid role")
     private String role;
 
     private Long organizationId;

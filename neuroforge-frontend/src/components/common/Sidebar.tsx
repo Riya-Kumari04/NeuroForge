@@ -2,79 +2,98 @@ import React from 'react';
 import { Link, useLocation } from 'wouter';
 import { FaBrain } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Briefcase, 
-  Settings, 
-  LogOut,
+import {
+  LayoutDashboard,
   FolderKanban,
-  CheckSquare,
-  Activity,
-  FileCode2,
-  Bug,
+  Building2,
   PieChart,
-  MessageSquare
+  Settings,
+  User,
+  SlidersHorizontal,
+  LogOut,
+  ListTodo,
+  KanbanSquare,
 } from 'lucide-react';
+
+interface NavItem {
+  label: string;
+  icon: React.ElementType;
+  href: string;
+}
 
 export default function Sidebar() {
   const [location] = useLocation();
-  // Use the UI role set at login (persisted in localStorage), not the raw JWT role
   const { user, role: uiRole, logout } = useAuth();
-  const role = uiRole || 'super-admin'; // Fallback for dev
+  const role = uiRole || 'developer';
 
-  const getNavItems = () => {
+  const getNavItems = (): NavItem[] => {
     switch (role) {
       case 'super-admin':
         return [
-          { label: 'Dashboard', icon: LayoutDashboard, href: '/super-admin' },
-          { label: 'Organizations', icon: Briefcase, href: '/super-admin/orgs' },
-          { label: 'Users', icon: Users, href: '/super-admin/users' },
-          { label: 'System Logs', icon: Activity, href: '/super-admin/logs' },
-          { label: 'Settings', icon: Settings, href: '/super-admin/settings' },
+          { label: 'Dashboard',     icon: LayoutDashboard,   href: '/super-admin' },
+          { label: 'Organizations', icon: Building2,          href: '/super-admin/organizations' },
+          { label: 'Settings',      icon: Settings,           href: '/super-admin/settings' },
+          { label: 'Profile',       icon: User,               href: '/super-admin/profile' },
+          { label: 'Preferences',   icon: SlidersHorizontal,  href: '/super-admin/preferences' },
         ];
+
       case 'org-admin':
         return [
-          { label: 'Overview', icon: LayoutDashboard, href: '/org-admin' },
-          { label: 'Projects', icon: FolderKanban, href: '/org-admin/projects' },
-          { label: 'Team', icon: Users, href: '/org-admin/team' },
-          { label: 'Reports', icon: PieChart, href: '/org-admin/reports' },
-          { label: 'Settings', icon: Settings, href: '/org-admin/settings' },
+          { label: 'Overview',      icon: LayoutDashboard,   href: '/org-admin' },
+          { label: 'Organizations', icon: Building2,          href: '/org-admin/organizations' },
+          { label: 'Projects',      icon: FolderKanban,       href: '/org-admin/projects' },
+          { label: 'Portfolio',     icon: PieChart,           href: '/org-admin/portfolio' },
+          { label: 'Settings',      icon: Settings,           href: '/org-admin/settings' },
+          { label: 'Profile',       icon: User,               href: '/org-admin/profile' },
+          { label: 'Preferences',   icon: SlidersHorizontal,  href: '/org-admin/preferences' },
         ];
+
       case 'project-manager':
         return [
-          { label: 'Board', icon: FolderKanban, href: '/project-manager' },
-          { label: 'Sprints', icon: Activity, href: '/project-manager/sprints' },
-          { label: 'Team', icon: Users, href: '/project-manager/team' },
-          { label: 'Reports', icon: PieChart, href: '/project-manager/reports' },
+          { label: 'Dashboard',   icon: LayoutDashboard,   href: '/project-manager' },
+          { label: 'Projects',    icon: FolderKanban,       href: '/project-manager/projects' },
+          { label: 'Portfolio',   icon: PieChart,           href: '/project-manager/portfolio' },
+          { label: 'Settings',    icon: Settings,           href: '/project-manager/settings' },
+          { label: 'Profile',     icon: User,               href: '/project-manager/profile' },
+          { label: 'Preferences', icon: SlidersHorizontal,  href: '/project-manager/preferences' },
         ];
+
       case 'developer':
         return [
-          { label: 'My Tasks', icon: CheckSquare, href: '/developer' },
-          { label: 'Code', icon: FileCode2, href: '/developer/code' },
-          { label: 'Pull Requests', icon: Activity, href: '/developer/prs' },
-          { label: 'Issues', icon: Bug, href: '/developer/issues' },
+          { label: 'Dashboard',   icon: LayoutDashboard,   href: '/developer' },
+          { label: 'My Projects', icon: FolderKanban,       href: '/developer/projects' },
+          { label: 'Settings',    icon: Settings,           href: '/developer/settings' },
+          { label: 'Profile',     icon: User,               href: '/developer/profile' },
+          { label: 'Preferences', icon: SlidersHorizontal,  href: '/developer/preferences' },
         ];
-      case 'tester':
+
+      case 'qa':
         return [
-          { label: 'Test Runs', icon: Activity, href: '/tester' },
-          { label: 'Bug Tracker', icon: Bug, href: '/tester/bugs' },
-          { label: 'Test Cases', icon: CheckSquare, href: '/tester/cases' },
-          { label: 'Reports', icon: PieChart, href: '/tester/reports' },
+          { label: 'Dashboard',   icon: LayoutDashboard,   href: '/qa' },
+          { label: 'Projects',    icon: FolderKanban,       href: '/qa/projects' },
+          { label: 'Settings',    icon: Settings,           href: '/qa/settings' },
+          { label: 'Profile',     icon: User,               href: '/qa/profile' },
+          { label: 'Preferences', icon: SlidersHorizontal,  href: '/qa/preferences' },
         ];
+
       case 'client':
         return [
-          { label: 'Dashboard', icon: LayoutDashboard, href: '/client' },
-          { label: 'Projects', icon: FolderKanban, href: '/client/projects' },
-          { label: 'Updates', icon: MessageSquare, href: '/client/updates' },
-          { label: 'Invoices', icon: FileCode2, href: '/client/invoices' },
+          { label: 'Dashboard',   icon: LayoutDashboard,   href: '/client' },
+          { label: 'Projects',    icon: FolderKanban,       href: '/client/projects' },
+          { label: 'Settings',    icon: Settings,           href: '/client/settings' },
+          { label: 'Profile',     icon: User,               href: '/client/profile' },
+          { label: 'Preferences', icon: SlidersHorizontal,  href: '/client/preferences' },
         ];
+
       default:
         return [];
     }
   };
 
   const navItems = getNavItems();
+
+  const isActive = (href: string) =>
+    location === href || (href !== `/${role}` && location.startsWith(`${href}/`));
 
   return (
     <aside className="w-64 fixed top-0 left-0 h-screen bg-[#0F172A] border-r border-border flex flex-col z-40">
@@ -86,35 +105,35 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      {/* Nav Links */}
+      {/* Nav */}
       <div className="flex-1 overflow-y-auto py-6 px-3 flex flex-col gap-1">
         {navItems.map((item) => {
-          const isActive = location === item.href || location.startsWith(`${item.href}/`);
+          const active = isActive(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
+                active
                   ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:text-white hover:bg-white/5'
               }`}
             >
-              <item.icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+              <item.icon className={`w-5 h-5 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
               {item.label}
             </Link>
           );
         })}
       </div>
 
-      {/* User Profile */}
+      {/* User footer */}
       <div className="p-4 border-t border-border">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-            {user?.name?.charAt(0) || 'U'}
+            {user?.name?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">{user?.name || 'User Name'}</p>
+            <p className="text-sm font-medium text-white truncate">{user?.name || 'User'}</p>
             <p className="text-xs text-muted-foreground capitalize">{role.replace(/-/g, ' ')}</p>
           </div>
         </div>

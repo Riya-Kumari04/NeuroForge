@@ -6,14 +6,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { FaBrain } from 'react-icons/fa';
 import { Shield, Building, Kanban, Code2, Bug, UserSquare2, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useAuth, UserRole } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { authService } from '@/services/authService';
+import { mapBackendRoleToUiRole, roleRouteMap } from '@/lib/roleUtils';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  role: z.enum(['super-admin', 'org-admin', 'project-manager', 'developer', 'tester', 'client'], {
-    errorMap: () => ({ message: 'Please select a role' }),
-  }),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   rememberMe: z.boolean().optional(),
 });
@@ -25,45 +23,43 @@ const roles = [
   { id: 'org-admin',        title: 'Org Admin',        icon: Building     },
   { id: 'project-manager',  title: 'Project Manager',  icon: Kanban       },
   { id: 'developer',        title: 'Developer',        icon: Code2        },
-  { id: 'tester',           title: 'QA Tester',        icon: Bug          },
+  { id: 'qa',              title: 'QA',              icon: Bug          },
   { id: 'client',           title: 'Client',           icon: UserSquare2  },
 ];
 
-const routeMap: Record<string, string> = {
-  'super-admin':     '/super-admin',
-  'org-admin':       '/org-admin',
-  'project-manager': '/project-manager',
-  'developer':       '/developer',
-  'tester':          '/tester',
-  'client':          '/client',
-};
-
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const { setRole, setUser } = useAuth();
+  const { setUser, isAuthenticated, role } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading]       = useState(false);
   const [apiError, setApiError]         = useState('');
 
+  // Redirect already-authenticated users to their dashboard (role is
+  // derived from their real backend role, never chosen manually)
+  React.useEffect(() => {
+    if (isAuthenticated && role) {
+      setLocation(roleRouteMap[role] ?? '/');
+    }
+  }, [isAuthenticated, role, setLocation]);
+
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', role: 'developer', password: '', rememberMe: false },
+    defaultValues: { email: '', password: '', rememberMe: false },
   });
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     setApiError('');
     try {
-      // Calls POST /auth/login, saves tokens, decodes JWT, returns AuthUser
+      // Calls POST /auth/login, saves tokens, returns AuthUser (with the
+      // account's real backend role, e.g. "ROLE_DEVELOPER")
       const user = await authService.login(data.email, data.password);
 
-      // Store real user in context
+      // Store real user in context — role is derived from user.role
       setUser(user);
 
-      // Role is chosen by the user in the dropdown (frontend routing only)
-      setRole(data.role as UserRole);
-
-      setLocation(routeMap[data.role]);
+      const destination = roleRouteMap[mapBackendRoleToUiRole(user.role) ?? ''] ?? '/';
+      setLocation(destination);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
@@ -97,7 +93,7 @@ export default function LoginPage() {
             <span className="text-primary">pioneer.</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-md leading-relaxed">
-            Sign in to your intelligent workspace. The AI-First enterprise SDLC
+            Sign in to your intelligent workspace. The Enterprise SDLC and DevOps
             platform is ready for your next deployment.
           </p>
 
@@ -186,28 +182,6 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Role selector (frontend routing only) */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-white" htmlFor="role">
-                  Select Role
-                </label>
-                <select
-                  id="role"
-                  className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
-                  {...register('role')}
-                >
-                  <option value="developer">Developer</option>
-                  <option value="project-manager">Project Manager</option>
-                  <option value="tester">QA Tester</option>
-                  <option value="org-admin">Organization Admin</option>
-                  <option value="super-admin">Super Admin</option>
-                  <option value="client">Client / Stakeholder</option>
-                </select>
-                {errors.role && (
-                  <p className="text-xs text-red-400 mt-1">{errors.role.message}</p>
-                )}
-              </div>
-
               {/* Password */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -263,27 +237,6 @@ export default function LoginPage() {
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign in'}
               </button>
             </form>
-
-            {/* Divider */}
-            <div className="mt-6 flex items-center">
-              <div className="flex-1 h-px bg-border" />
-              <span className="px-3 text-xs text-muted-foreground uppercase">OR CONTINUE WITH</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            {/* Google OAuth — redirects to backend Google OAuth flow */}
-            <a
-              href="/oauth2/authorization/google"
-              className="mt-4 w-full bg-background border border-border text-white font-medium rounded-lg py-2.5 hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
-                <path d="M12.0003 4.75C13.7703 4.75 15.3553 5.36002 16.6053 6.54998L20.0303 3.125C17.9502 1.19 15.2353 0 12.0003 0C7.31028 0 3.25527 2.69 1.28027 6.60998L5.27028 9.70498C6.21525 6.86002 8.87028 4.75 12.0003 4.75Z" fill="#EA4335" />
-                <path d="M23.49 12.275C23.49 11.49 23.415 10.73 23.3 10H12V14.51H18.47C18.18 15.99 17.34 17.25 16.08 18.1L19.945 21.1C22.2 19.01 23.49 15.92 23.49 12.275Z" fill="#4285F4" />
-                <path d="M5.26498 14.2949C5.02498 13.5699 4.88501 12.7999 4.88501 11.9999C4.88501 11.1999 5.01998 10.4299 5.26498 9.7049L1.275 6.60986C0.46 8.22986 0 10.0599 0 11.9999C0 13.9399 0.46 15.7699 1.28 17.3899L5.26498 14.2949Z" fill="#FBBC05" />
-                <path d="M12.0004 24C15.2404 24 17.9654 22.935 19.9454 21.095L16.0804 18.095C15.0054 18.82 13.6204 19.245 12.0004 19.245C8.8704 19.245 6.21537 17.135 5.26538 14.29L1.27539 17.385C3.25539 21.31 7.3104 24 12.0004 24Z" fill="#34A853" />
-              </svg>
-              Google
-            </a>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Don't have an account?{' '}

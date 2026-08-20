@@ -25,6 +25,12 @@ public class AuthController {
         return ResponseEntity.ok(authService.sendOtp(req));
     }
 
+    @GetMapping("/check-invitation")
+    @Operation(summary = "Check if email has an accepted invitation")
+    public ResponseEntity<ApiResponse<InvitationCheckResponse>> checkInvitation(@RequestParam String email) {
+        return ResponseEntity.ok(authService.checkInvitation(email));
+    }
+
     @PostMapping("/register")
     @Operation(summary = "Register a new user (requires OTP verification)")
     public ResponseEntity<ApiResponse<Void>> register(@Valid @RequestBody RegisterRequest req) {

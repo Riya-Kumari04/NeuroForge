@@ -34,16 +34,22 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_PATHS = {
         "/auth/**",
+        "/favicon.ico",
+        "/api/invitations/accept",
+        "/api/invitations/reject",
+        "/api/invitations/validate",
         "/swagger-ui/**",
         "/swagger-ui.html",
         "/api-docs/**",
         "/v3/api-docs/**",
-        "/error"
+        "/error",
+        "/ws/**",
+        "/pipeline-ws/**"
     };
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
+        http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -51,23 +57,86 @@ public class SecurityConfig {
                 .requestMatchers(PUBLIC_PATHS).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Role-based API protection
+                // Super admin only
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_SUPER_ADMIN")
-                .requestMatchers("/api/org/**").hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
+
+                // Org management
+                .requestMatchers("/api/organizations/**").hasAnyAuthority(
+                        "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
+
+                // Invitation management (send/list/cancel) — org-level protected
+                .requestMatchers("/api/invitations/**").authenticated()
+
+                // Current user profile & preferences — any authenticated user
+                .requestMatchers("/api/users/me/**").authenticated()
+                .requestMatchers("/api/users/me").authenticated()
+
+                // Notifications — any authenticated user
+                .requestMatchers("/api/notifications/**").authenticated()
+
+                // Global search — any authenticated user
+                .requestMatchers("/api/search/**").authenticated()
+
+                // Dashboard — all authenticated users
+                .requestMatchers("/api/dashboard/**").authenticated()
+
+                // Project management — all authenticated users can READ; writes restricted via @PreAuthorize
+                .requestMatchers(HttpMethod.GET, "/api/projects/**").authenticated()
                 .requestMatchers("/api/projects/**").hasAnyAuthority(
-                        "ROLE_SUPER_ADMIN","ROLE_ORG_ADMIN","ROLE_PROJECT_MANAGER")
+                        "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN", "ROLE_PROJECT_MANAGER")
+
+                // Sprint management — all roles can READ; writes restricted via @PreAuthorize
+                .requestMatchers("/api/sprints/**").authenticated()
+
+                // Task management — all authenticated users can READ; writes restricted via @PreAuthorize
+                .requestMatchers(HttpMethod.GET, "/api/tasks/**").authenticated()
+                .requestMatchers("/api/tasks/**").hasAnyAuthority(
+                        "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN", "ROLE_PROJECT_MANAGER",
+                        "ROLE_DEVELOPER", "ROLE_QA")
+
+                // Project member management — all roles can READ (GET); writes via @PreAuthorize
+                .requestMatchers("/api/project-members/**").authenticated()
+
+                // Specification management — all authenticated users can READ; writes restricted via @PreAuthorize
+                .requestMatchers(HttpMethod.GET, "/api/specifications/**").authenticated()
+                .requestMatchers("/api/specifications/**").authenticated()
+
+                // User admin list — super admin / org admin only
+                .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN")
+
+                // Repository integration — PM can manage, all authenticated can read commits
+                .requestMatchers(HttpMethod.GET, "/api/repositories/**").authenticated()
+                .requestMatchers("/api/repositories/**").hasAnyAuthority(
+                        "ROLE_SUPER_ADMIN", "ROLE_ORG_ADMIN", "ROLE_PROJECT_MANAGER")
+
+                // Module 9: CI/CD Pipeline — all authenticated users can read; PM can manage
+                .requestMatchers(HttpMethod.GET, "/api/pipelines/**").authenticated()
+                .requestMatchers("/api/pipelines/**").hasAnyAuthority("ROLE_PROJECT_MANAGER")
+
+                // Module 8: Code Review — Developers can create/request reviews, PMs can view and approve/reject
+                .requestMatchers(HttpMethod.GET, "/api/code-reviews/**").hasAnyAuthority("ROLE_DEVELOPER", "ROLE_PROJECT_MANAGER")
+                .requestMatchers(HttpMethod.GET, "/api/reviews/**").hasAnyAuthority("ROLE_DEVELOPER", "ROLE_PROJECT_MANAGER")
+                .requestMatchers(HttpMethod.POST, "/api/code-reviews").hasAuthority("ROLE_DEVELOPER")
+                .requestMatchers(HttpMethod.POST, "/api/reviews/analyze").hasAuthority("ROLE_DEVELOPER")
+                .requestMatchers(HttpMethod.PATCH, "/api/code-reviews/**").hasAuthority("ROLE_PROJECT_MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/code-reviews/**").hasAnyAuthority("ROLE_DEVELOPER", "ROLE_PROJECT_MANAGER")
+
+                // Module 14: Analytics — role-based access controlled via @PreAuthorize on endpoints
+                .requestMatchers("/api/analytics/**").authenticated()
+
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .build();
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

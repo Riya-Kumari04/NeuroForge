@@ -37,6 +37,12 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String name;
 
+    @Column
+    private String phone;
+
+    @Column
+    private String avatarUrl;
+
     /**
      * One of: ROLE_SUPER_ADMIN | ROLE_ORG_ADMIN | ROLE_PROJECT_MANAGER
      *         ROLE_DEVELOPER   | ROLE_TESTER    | ROLE_CLIENT
@@ -48,13 +54,40 @@ public class User implements UserDetails {
     @Column(name = "organization_id")
     private Long organizationId;
 
-    /** false until the user verifies the OTP sent at registration */
+    /**
+     * Approval status for users requiring approval
+     * PENDING - awaiting approval
+     * APPROVED - approved and can access system
+     * REJECTED - rejected access
+     */
+    @Column(name = "approval_status")
     @Builder.Default
-    private boolean enabled = false;
+    private String approvalStatus = "APPROVED";
 
-    @Column(name = "account_non_expired")  @Builder.Default private boolean accountNonExpired     = true;
-    @Column(name = "account_non_locked")   @Builder.Default private boolean accountNonLocked       = true;
-    @Column(name = "credentials_non_expired") @Builder.Default private boolean credentialsNonExpired = true;
+    @Column(name = "approved_by")
+    private Long approvedBy;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
+    /**
+     * Use Boolean (wrapper) so that existing rows where these columns are NULL
+     * can be loaded without a Hibernate PropertyAccessException.
+     * isEnabled(), isAccountNonExpired(), etc. fall back to safe defaults.
+     */
+    @Builder.Default
+    private Boolean enabled = true;
+
+    @Column(name = "account_non_expired")     @Builder.Default private Boolean accountNonExpired     = true;
+    @Column(name = "account_non_locked")      @Builder.Default private Boolean accountNonLocked       = true;
+    @Column(name = "credentials_non_expired") @Builder.Default private Boolean credentialsNonExpired  = true;
+
+    // ── Preferences ───────────────────────────────────────────────────────────
+    // Boolean wrapper to tolerate NULL in rows created before these columns existed.
+    @Column(name = "notifications_enabled") @Builder.Default private Boolean notificationsEnabled = true;
+    @Column @Builder.Default private String language = "English";
+    @Column @Builder.Default private String timezone = "UTC";
+    @Column @Builder.Default private String theme    = "dark";
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -65,12 +98,17 @@ public class User implements UserDetails {
     @PrePersist  protected void onCreate() { createdAt = updatedAt = LocalDateTime.now(); }
     @PreUpdate   protected void onUpdate() { updatedAt = LocalDateTime.now(); }
 
-    // ── UserDetails ──────────────────────────────────────────────────────────
+    // ── UserDetails ───────────────────────────────────────────────────────────
     @Override public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role));
     }
-    @Override public boolean isAccountNonExpired()     { return accountNonExpired; }
-    @Override public boolean isAccountNonLocked()      { return accountNonLocked; }
-    @Override public boolean isCredentialsNonExpired() { return credentialsNonExpired; }
-    @Override public boolean isEnabled()               { return enabled; }
+
+    // Null-safe: fall back to the column's intended default when the DB value is NULL.
+    @Override public boolean isEnabled()               {
+        // User must be enabled (approval status check removed to allow login after OTP verification)
+        return Boolean.TRUE.equals(enabled);
+    }
+    @Override public boolean isAccountNonExpired()     { return !Boolean.FALSE.equals(accountNonExpired); }
+    @Override public boolean isAccountNonLocked()      { return !Boolean.FALSE.equals(accountNonLocked); }
+    @Override public boolean isCredentialsNonExpired() { return !Boolean.FALSE.equals(credentialsNonExpired); }
 }

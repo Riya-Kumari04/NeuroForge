@@ -6,12 +6,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 @Repository
 public interface InviteRepository extends JpaRepository<Invite, Long> {
     List<Invite> findByOrganizationId(Long organizationId);
     List<Invite> findByOrganizationIdAndStatus(Long organizationId, InviteStatus status);
-    Optional<Invite> findByToken(String token);
+    @Query("SELECT i FROM Invite i LEFT JOIN FETCH i.organization LEFT JOIN FETCH i.invitedBy WHERE i.token = :token")
+    Optional<Invite> findByToken(@Param("token") String token);
     long countByOrganizationIdAndStatus(Long organizationId, InviteStatus status);
+
+    /** Find all invitations for a given email address and status — used during registration
+     *  to materialise TeamMember rows for invitations accepted before the account existed. */
+    @Query("SELECT i FROM Invite i LEFT JOIN FETCH i.organization WHERE i.email = :email AND i.status = :status")
+    List<Invite> findByEmailAndStatus(@Param("email") String email, @Param("status") InviteStatus status);
 }

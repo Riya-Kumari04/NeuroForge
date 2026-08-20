@@ -1,249 +1,435 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'wouter';
+import { Users, Building, FolderKanban, CheckSquare, Loader2, Plus, X, Clock, BarChart3, Trash2 } from 'lucide-react';
 import Sidebar from '@/components/common/Sidebar';
 import DashboardNavbar from '@/components/common/DashboardNavbar';
-import { Users, Building, FolderKanban, Activity, ShieldAlert, Lock, BarChart2, Cpu } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { organizationService, Organization } from '@/services/organizationService';
+import api from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
-const userGrowthData = [
-  { name: 'Jan', users: 4000 },
-  { name: 'Feb', users: 5500 },
-  { name: 'Mar', users: 7200 },
-  { name: 'Apr', users: 8500 },
-  { name: 'May', users: 9800 },
-  { name: 'Jun', users: 11200 },
-  { name: 'Jul', users: 13500 },
-];
+interface DashboardStats {
+  totalProjects: number; activeProjects: number; completedProjects: number;
+  totalSprints: number; totalTasks: number; completedTasks: number;
+  pendingTasks: number; overallProgress: number;
+}
+interface UserDto { id: number; name: string; email: string; role: string; enabled?: boolean; }
 
-const orgData = [
-  { id: 1, name: 'Acme Corp', users: 124, projects: 12, status: 'Active', plan: 'Enterprise' },
-  { id: 2, name: 'Globex Inc', users: 86, projects: 8, status: 'Active', plan: 'Pro' },
-  { id: 3, name: 'Soylent Ltd', users: 215, projects: 24, status: 'Warning', plan: 'Enterprise' },
-  { id: 4, name: 'Initech', users: 42, projects: 5, status: 'Active', plan: 'Pro' },
-  { id: 5, name: 'Umbrella Corp', users: 310, projects: 42, status: 'Active', plan: 'Enterprise' },
-];
-
-const logs = [
-  { id: 1, action: 'User Login', status: 'Success', time: '5 mins ago', user: 'admin@acme.com' },
-  { id: 2, action: 'Failed Login Attempt', status: 'Warning', time: '15 mins ago', user: 'Unknown' },
-  { id: 3, action: 'New Organisation Created', status: 'Success', time: '1 hour ago', user: 'Admin' },
-  { id: 4, action: 'Role Assigned: Developer', status: 'Success', time: '2 hours ago', user: 'Admin' },
-  { id: 5, action: 'Password Reset Requested', status: 'Warning', time: '3 hours ago', user: 'john@globex.com' },
-];
-
-function ComingSoonCard({ title, description, module }: { title: string; description: string; module: string }) {
+function StatCard({ label, value, icon: Icon, color, bg }: {
+  label: string; value: number | string; icon: React.ElementType; color: string; bg: string;
+}) {
   return (
-    <div className="bg-card border border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center text-center min-h-[200px]">
-      <div className="w-10 h-10 rounded-lg bg-slate-500/10 flex items-center justify-center text-slate-500 mb-3">
-        <Lock className="w-5 h-5" />
+    <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+      <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center ${color} mb-4`}>
+        <Icon className="w-5 h-5" />
       </div>
-      <h3 className="text-sm font-semibold text-white mb-1">{title}</h3>
-      <p className="text-xs text-muted-foreground mb-3">{description}</p>
-      <span className="text-[10px] px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 font-medium">
-        {module}
-      </span>
+      <h3 className="text-muted-foreground text-sm font-medium mb-1">{label}</h3>
+      <p className="text-3xl font-bold text-white">{value}</p>
     </div>
   );
 }
 
 export default function SuperAdminDashboard() {
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showPendingUsers, setShowPendingUsers] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserDto | null>(null);
+  const [newUser, setNewUser] = useState({ name: '', username: '', email: '', password: '', role: 'ROLE_DEVELOPER', organizationId: '' as any, enabled: true });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+
+  const { data: orgsData, isLoading: orgsLoading } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: () => organizationService.getAll().then(r => r.data),
+  });
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['all-users'],
+    queryFn: () => api.get<any>('/users').then(r => r.data),
+  });
+  const { data: pendingUsersData, isLoading: pendingUsersLoading } = useQuery({
+    queryKey: ['pending-users'],
+    queryFn: () => api.get<any>('/users/pending').then(r => r.data),
+    enabled: showPendingUsers,
+  });
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: () => api.get<any>('/dashboard').then(r => r.data),
+  });
+
+  const orgs: Organization[] = orgsData?.data || [];
+  const users: UserDto[] = usersData?.data || [];
+  const stats: DashboardStats | undefined = statsData?.data;
+  const isLoading = orgsLoading || usersLoading || statsLoading;
+
+  const createUserMutation = useMutation({
+    mutationFn: (userData: any) => api.post<any>('/users', userData).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-users'] });
+      setShowCreateUserModal(false);
+      setNewUser({ name: '', username: '', email: '', password: '', role: 'ROLE_DEVELOPER', organizationId: '', enabled: true });
+      toast({ title: 'User Created', description: 'New user has been created successfully.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to create user', variant: 'destructive' });
+    },
+  });
+
+  const approveUserMutation = useMutation({
+    mutationFn: ({ userId, action }: { userId: number; action: string }) =>
+      api.put<any>(`/users/${userId}/approve`, { action }).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-users'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-users'] });
+      toast({ title: 'User Updated', description: 'User approval status has been updated.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to update user', variant: 'destructive' });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: number) => api.delete<any>(`/users/${userId}`).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-users'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-users'] });
+      setDeleteTarget(null);
+      toast({ title: 'User Deleted', description: 'User has been removed from the system.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.response?.data?.message || 'Failed to delete user', variant: 'destructive' });
+    },
+  });
+
+  const handleCreateUser = () => {
+    if (!newUser.name || !newUser.username || !newUser.email || !newUser.password || !newUser.role) {
+      toast({ title: 'Error', description: 'Please fill all required fields', variant: 'destructive' });
+      return;
+    }
+    createUserMutation.mutate(newUser);
+  };
+
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
       <div className="flex-1 ml-64 flex flex-col">
-        <DashboardNavbar title="Super Admin Control Center" />
-
+        <DashboardNavbar title="Super Admin Dashboard" />
         <main className="flex-1 p-8 overflow-y-auto">
 
-          {/* Module 1 Banner */}
-          <div className="mb-8 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-6 py-4 flex items-center justify-between">
+          <div className="mb-8 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-emerald-400">✓ Module 1 — Authentication & RBAC</p>
-              <p className="text-xs text-muted-foreground mt-0.5">You are logged in as Super Admin. Full platform access is active.</p>
+              <h2 className="text-2xl font-bold text-white">Super Admin Dashboard</h2>
+              <p className="text-muted-foreground text-sm mt-1">Manage all organizations, users, and platform settings.</p>
             </div>
-            <span className="text-[10px] px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-              Active Module
-            </span>
+            <Link href="/super-admin/analytics" className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+              <BarChart3 className="w-4 h-4" />
+              View Analytics
+            </Link>
           </div>
 
-          {/* Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
-                  <Users className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">+12%</span>
-              </div>
-              <h3 className="text-muted-foreground text-sm font-medium mb-1">Total Users</h3>
-              <p className="text-3xl font-bold text-white">13,542</p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
-
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                  <Building className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">+5%</span>
-              </div>
-              <h3 className="text-muted-foreground text-sm font-medium mb-1">Organisations</h3>
-              <p className="text-3xl font-bold text-white">524</p>
-            </div>
-
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                  <FolderKanban className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">+18%</span>
-              </div>
-              <h3 className="text-muted-foreground text-sm font-medium mb-1">Active Projects</h3>
-              <p className="text-3xl font-bold text-white">2,104</p>
-            </div>
-
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500">
-                  <Activity className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">99.9%</span>
-              </div>
-              <h3 className="text-muted-foreground text-sm font-medium mb-1">System Health</h3>
-              <p className="text-3xl font-bold text-white">Stable</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            {/* User Registration Chart */}
-            <div className="bg-card border border-border rounded-xl p-6 lg:col-span-2 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-white">User Registration Trend</h2>
-                <span className="text-xs text-muted-foreground bg-background border border-border px-3 py-1.5 rounded-lg">Last 6 Months</span>
-              </div>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={userGrowthData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                    <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 12 }} tickLine={false} axisLine={false} tickFormatter={(val) => `${val / 1000}k`} />
-                    <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#1e293b', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#3b82f6' }} />
-                    <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#111827', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#3b82f6' }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Quick Actions + Coming Soon */}
-            <div className="space-y-6">
-              <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
-                <div className="space-y-2">
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg bg-background border border-border hover:border-primary/50 transition-colors group">
-                    <span className="text-sm font-medium text-white">Add Organisation</span>
-                    <span className="w-6 h-6 rounded bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">+</span>
-                  </button>
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg bg-background border border-border hover:border-primary/50 transition-colors group">
-                    <span className="text-sm font-medium text-white">Global Announcement</span>
-                    <span className="w-6 h-6 rounded bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">↗</span>
-                  </button>
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg bg-background border border-border hover:border-primary/50 transition-colors group">
-                    <span className="text-sm font-medium text-white">System Settings</span>
-                    <span className="w-6 h-6 rounded bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">⚙</span>
-                  </button>
-                </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <StatCard label="Organizations" value={orgs.length}               icon={Building}     color="text-blue-400"    bg="bg-blue-500/10" />
+                <StatCard label="Total Users"   value={users.length}              icon={Users}        color="text-indigo-400"  bg="bg-indigo-500/10" />
+                <StatCard label="Projects"      value={stats?.totalProjects ?? 0} icon={FolderKanban} color="text-violet-400"  bg="bg-violet-500/10" />
+                <StatCard label="Total Tasks"   value={stats?.totalTasks ?? 0}    icon={CheckSquare}  color="text-emerald-400" bg="bg-emerald-500/10" />
               </div>
 
-              {/* Coming Soon */}
-              <div className="bg-card border border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center text-center">
-                <div className="w-9 h-9 rounded-lg bg-slate-500/10 flex items-center justify-center text-slate-500 mb-3">
-                  <Cpu className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-semibold text-white mb-1">AI Analytics Suite</h3>
-                <p className="text-xs text-muted-foreground mb-3">Platform-wide AI insights and recommendations.</p>
-                <span className="text-[10px] px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 font-medium">
-                  Coming Soon — Module 10
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Organisations Table */}
-            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden lg:col-span-2">
-              <div className="p-6 border-b border-border flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Top Organisations</h2>
-                <button className="text-sm text-primary hover:text-blue-400">View All</button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground bg-background/50">
-                      <th className="px-6 py-3 font-medium">Organisation</th>
-                      <th className="px-6 py-3 font-medium">Users</th>
-                      <th className="px-6 py-3 font-medium">Projects</th>
-                      <th className="px-6 py-3 font-medium">Plan</th>
-                      <th className="px-6 py-3 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {orgData.map((org) => (
-                      <tr key={org.id} className="border-b border-border/50 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 font-medium text-white">{org.name}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{org.users}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{org.projects}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${org.plan === 'Enterprise' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                            {org.plan}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`flex items-center gap-1.5 ${org.status === 'Active' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${org.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-                            {org.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Auth / System Logs */}
-            <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col">
-              <div className="p-6 border-b border-border flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Auth Logs</h2>
-                <ShieldAlert className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="p-4 flex-1 flex flex-col gap-1 overflow-y-auto">
-                {logs.map((log) => (
-                  <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-                    <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${log.status === 'Success' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{log.action}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span className="truncate">{log.user}</span>
-                        <span>•</span>
-                        <span className="flex-shrink-0">{log.time}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Coming Soon footer */}
-              <div className="p-4 border-t border-border">
-                <div className="flex items-center gap-2 p-3 bg-background rounded-lg border border-dashed border-border">
-                  <BarChart2 className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-slate-400">Advanced Log Analytics</p>
-                    <p className="text-[10px] text-muted-foreground">Coming Soon — Module 7</p>
+              <div className="bg-card border border-border rounded-xl shadow-sm">
+                <div className="p-6 border-b border-border flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-white">Users ({users.length})</h2>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowCreateUserModal(true)}
+                      className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add User
+                    </button>
+                    <button
+                      onClick={() => setShowPendingUsers(true)}
+                      className="flex items-center gap-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    >
+                      <Clock className="w-4 h-4" />
+                      Pending Approvals
+                    </button>
                   </div>
                 </div>
+                {users.length === 0 ? (
+                  <div className="p-10 text-center text-sm text-muted-foreground">No users found.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-background/50 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                          <th className="px-6 py-3 font-medium">Name</th>
+                          <th className="px-6 py-3 font-medium">Email</th>
+                          <th className="px-6 py-3 font-medium">Role</th>
+                          <th className="px-6 py-3 font-medium">Status</th>
+                          <th className="px-6 py-3 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm divide-y divide-border/50">
+                        {users.map((u) => (
+                          <tr key={u.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                  {u.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
+                                <span className="font-medium text-white">{u.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-muted-foreground">{u.email}</td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs px-2 py-0.5 rounded border bg-slate-500/10 text-slate-400 border-slate-500/20">
+                                {u.role?.replace('ROLE_', '') || 'USER'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`text-xs px-2 py-0.5 rounded ${u.enabled ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                {u.enabled ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              {u.id !== currentUser?.id && (
+                                <button
+                                  onClick={() => setDeleteTarget(u)}
+                                  className="text-red-400 hover:text-red-300 transition-colors"
+                                  title="Delete user"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </main>
       </div>
+
+      {showCreateUserModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white">Create New User</h3>
+              <button onClick={() => setShowCreateUserModal(false)} className="text-muted-foreground hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Name *</label>
+                <input
+                  type="text"
+                  className="w-full bg-background border border-border rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Full name"
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Username *</label>
+                <input
+                  type="text"
+                  className="w-full bg-background border border-border rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Username"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Email *</label>
+                <input
+                  type="email"
+                  className="w-full bg-background border border-border rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="email@example.com"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Password *</label>
+                <input
+                  type="password"
+                  className="w-full bg-background border border-border rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Min 8 characters"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Role *</label>
+                <select
+                  className="w-full bg-background border border-border rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={newUser.role}
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                >
+                  <option value="ROLE_SUPER_ADMIN">Super Admin</option>
+                  <option value="ROLE_ORG_ADMIN">Organization Admin</option>
+                  <option value="ROLE_PROJECT_MANAGER">Project Manager</option>
+                  <option value="ROLE_DEVELOPER">Developer</option>
+                  <option value="ROLE_QA">QA</option>
+                  <option value="ROLE_CLIENT">Client</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Organization</label>
+                <select
+                  className="w-full bg-background border border-border rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={newUser.organizationId}
+                  onChange={(e) => setNewUser({ ...newUser, organizationId: e.target.value })}
+                >
+                  <option value="">None</option>
+                  {orgs.map((org) => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="enabled"
+                  checked={newUser.enabled}
+                  onChange={(e) => setNewUser({ ...newUser, enabled: e.target.checked })}
+                  className="w-4 h-4 rounded border-border"
+                />
+                <label htmlFor="enabled" className="text-sm text-white">Enable user immediately</label>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleCreateUser}
+                  disabled={createUserMutation.isPending}
+                  className="flex-1 bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+                </button>
+                <button
+                  onClick={() => setShowCreateUserModal(false)}
+                  className="flex-1 bg-secondary hover:bg-secondary/80 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Users Modal */}
+      {showPendingUsers && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-4xl shadow-xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white">Pending User Approvals</h3>
+              <button onClick={() => setShowPendingUsers(false)} className="text-muted-foreground hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {pendingUsersLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                {pendingUsersData?.data?.length === 0 ? (
+                  <div className="text-center text-sm text-muted-foreground py-8">No pending users awaiting approval.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingUsersData?.data?.map((user: UserDto) => (
+                      <div key={user.id} className="bg-background/50 border border-border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                              {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-white">{user.name}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs px-2 py-0.5 rounded bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                                  {user.role?.replace('ROLE_', '') || 'USER'}
+                                </span>
+                                <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                  PENDING
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => approveUserMutation.mutate({ userId: user.id, action: 'APPROVE' })}
+                              disabled={approveUserMutation.isPending}
+                              className="px-3 py-1.5 text-sm bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => approveUserMutation.mutate({ userId: user.id, action: 'REJECT' })}
+                              disabled={approveUserMutation.isPending}
+                              className="px-3 py-1.5 text-sm bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Confirmation Dialog */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white">Delete User</h3>
+              <button onClick={() => setDeleteTarget(null)} className="text-muted-foreground hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-white">
+                Are you sure you want to delete <span className="font-semibold">{deleteTarget.name}</span> ({deleteTarget.email})?
+              </p>
+              <p className="text-xs text-red-400">
+                This action will permanently remove the user from the system, including all their assignments and access.
+              </p>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => deleteUserMutation.mutate(deleteTarget.id)}
+                  disabled={deleteUserMutation.isPending}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                </button>
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 bg-secondary hover:bg-secondary/80 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
